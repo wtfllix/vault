@@ -24,8 +24,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: vaultt-linux
-        path: target/release/vaultt
+        name: vault-linux
+        path: target/release/vault
 
   build-windows:
     runs-on: windows-latest
@@ -49,8 +49,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: vaultt-windows
-        path: target/release/vaultt.exe
+        name: vault-windows
+        path: target/release/vault.exe
 
   build-macos:
     runs-on: macos-latest
@@ -68,5 +68,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: vaultt-macos
-        path: target/release/vaultt
+        name: vault-macos
+        path: target/release/vault
