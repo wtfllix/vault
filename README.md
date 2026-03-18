@@ -1,4 +1,4 @@
-# Vaultt - API Key 保险箱
+# Vault - API Key 保险箱
 
 一个简单、安全、跨平台的密钥管理工具，专为技术人员设计。
 
