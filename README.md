@@ -15,7 +15,7 @@
 
 ### 从 Releases 下载
 
-访问 [Releases](https://github.com/YOUR_USERNAME/vaultt/releases) 页面下载对应平台的可执行文件。
+访问 [Releases](https://github.com/wtfllix/vault/releases) 页面下载对应平台的可执行文件。
 
 ### 各平台
 
