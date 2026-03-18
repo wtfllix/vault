@@ -1,0 +1,12 @@
+/home/lx/projects/apikey-vault-cli/target/release/deps/polyval-e2c2894c2b3a3db3.d: /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/lib.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/soft64.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/mulx.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/clmul.rs
+
+/home/lx/projects/apikey-vault-cli/target/release/deps/libpolyval-e2c2894c2b3a3db3.rlib: /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/lib.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/soft64.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/mulx.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/clmul.rs
+
+/home/lx/projects/apikey-vault-cli/target/release/deps/libpolyval-e2c2894c2b3a3db3.rmeta: /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/lib.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/soft64.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/mulx.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs /home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/clmul.rs
+
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/lib.rs:
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs:
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/soft64.rs:
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/mulx.rs:
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs:
+/home/lx/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/clmul.rs:
