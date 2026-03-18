@@ -183,7 +183,7 @@ cp vaultt.db vaultt-backup-$(date +%Y%m%d).db
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YOUR_USERNAME/vaultt.git
+git clone https://github.com/wtfllix/vault.git
 cd vaultt
 
 # 编译
