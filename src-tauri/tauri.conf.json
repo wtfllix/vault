@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "API Key 保险箱",
+  "productName": "API Key Vault",
   "version": "1.0.0",
   "identifier": "com.apikeyvault.desktop",
   "build": {
