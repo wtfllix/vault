@@ -1,6 +1,6 @@
 # Vault - API Key 保险箱
 
-一个简单、安全、跨平台的密钥管理工具，专为技术人员设计。
+一个简单、安全、跨平台的命令行密钥管理工具，专为技术人员设计。
 
 ## 特性
 
@@ -21,9 +21,9 @@
 
 | 平台 | 文件 |
 |------|------|
-| Windows | `vaultt-windows-x64.exe` |
-| macOS | `vaultt-macos-x64` |
-| Linux | `vaultt-linux-x64` |
+| Windows | `vault-windows-x64.exe` |
+| macOS | `vault-macos-x64` |
+| Linux | `vault-linux-x64` |
 
 ## 使用方法
 
