@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.DS_Store
+
+src-tauri/target/
+src-tauri/gen/
+src-tauri/.cargo/
+
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
