@@ -177,6 +177,38 @@ body {
   gap: 12px;
 }
 
+.wizard-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-step {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.quick-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-card {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.quick-path {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #2f4338;
+  word-break: break-all;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
 .entry-card {
   background: var(--surface-strong);
   border: 1px solid var(--line);

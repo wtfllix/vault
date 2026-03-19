@@ -6,12 +6,14 @@ import {
   SyncOutlined,
   HistoryOutlined,
   FolderOpenOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  RocketOutlined
 } from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/core';
 
 const { Title, Paragraph, Text } = Typography;
 const HISTORY_KEY = 'db_connection_history_v1';
+const ONBOARD_KEY = 'db_connection_onboarded_v1';
 const MAX_HISTORY = 8;
 
 const Login = ({ onLogin }) => {
@@ -19,21 +21,25 @@ const Login = ({ onLogin }) => {
   const [mode, setMode] = useState('open');
   const [history, setHistory] = useState([]);
   const [source, setSource] = useState('local');
+  const [showWizard, setShowWizard] = useState(true);
   const [form] = Form.useForm();
 
   useEffect(() => {
     form.setFieldsValue({ dbPath: 'apikey-vault.db' });
     try {
       const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-      if (Array.isArray(saved)) {
-        setHistory(saved);
-      }
+      const nextHistory = Array.isArray(saved) ? saved : [];
+      const onboarded = localStorage.getItem(ONBOARD_KEY) === '1';
+      setHistory(nextHistory);
+      setShowWizard(!(onboarded && nextHistory.length > 0));
     } catch {
       setHistory([]);
+      setShowWizard(true);
     }
   }, []);
 
   const historyCount = useMemo(() => history.length, [history]);
+  const lastEntry = history[0] || null;
 
   const saveHistory = (path, usedMode, usedSource) => {
     const item = {
@@ -45,11 +51,12 @@ const Login = ({ onLogin }) => {
     const next = [item, ...history.filter((h) => h.path !== path)].slice(0, MAX_HISTORY);
     setHistory(next);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    localStorage.setItem(ONBOARD_KEY, '1');
   };
 
-  const fillQuickPath = (nextPath, nextSource) => {
-    form.setFieldValue('dbPath', nextPath);
-    setMode('open');
+  const fillQuickPath = (nextPath, nextSource, nextMode = 'open') => {
+    form.setFieldsValue({ dbPath: nextPath });
+    setMode(nextMode);
     setSource(nextSource);
   };
 
@@ -78,6 +85,7 @@ const Login = ({ onLogin }) => {
       });
 
       saveHistory(path, mode, source);
+      setShowWizard(false);
       message.success(mode === 'create' ? '保险箱创建成功' : '保险箱已解锁');
       onLogin(path);
     } catch (error) {
@@ -92,47 +100,77 @@ const Login = ({ onLogin }) => {
       <div className="login-layout">
         <section className="glass-panel login-hero">
           <div>
-            <Title className="login-title">数据库连接中心</Title>
+            <Title className="login-title">{showWizard ? '首次连接向导' : '快速连接入口'}</Title>
             <Paragraph className="login-subtitle">
-              在进入保险箱前，先选择数据库入口。支持本地文件和 Syncthing 同步目录，并保存最近连接记录。
+              {showWizard
+                ? '按照向导完成来源与路径设置，首次连接后将自动保存入口。'
+                : '已为你准备上次入口。也可以随时进入向导创建新的连接入口。'}
             </Paragraph>
           </div>
 
-          <div className="entry-stack">
-            <div className="entry-card">
-              <Space align="start">
-                <FolderOpenOutlined />
-                <div>
-                  <Text strong>本地数据库入口</Text>
-                  <br />
-                  <Text type="secondary">示例：`D:/secure/apikey-vault.db` 或 `./apikey-vault.db`</Text>
-                  <br />
-                  <Button type="link" className="entry-link-btn" onClick={() => fillQuickPath('apikey-vault.db', 'local')}>
-                    使用默认本地路径
+          {showWizard ? (
+            <div className="wizard-panel">
+              <div className="wizard-step">
+                <Text strong>步骤 1：选择存储来源</Text>
+                <Space wrap style={{ marginTop: 8 }}>
+                  <Button onClick={() => fillQuickPath('apikey-vault.db', 'local')} icon={<FolderOpenOutlined />}>
+                    本地文件
                   </Button>
-                </div>
-              </Space>
+                  <Button onClick={() => fillQuickPath('D:/vault-sync/apikey-vault.db', 'syncthing')} icon={<SyncOutlined />}>
+                    Syncthing 目录
+                  </Button>
+                </Space>
+              </div>
+              <div className="wizard-step">
+                <Text strong>步骤 2：选择打开或创建</Text>
+                <Space wrap style={{ marginTop: 8 }}>
+                  <Button onClick={() => setMode('open')}>打开已有库</Button>
+                  <Button onClick={() => setMode('create')}>创建新库</Button>
+                </Space>
+              </div>
+              <div className="wizard-step">
+                <Text strong>步骤 3：在右侧输入主密码并连接</Text>
+                <br />
+                <Text type="secondary">连接成功后，下次将自动显示“上次入口 + 新建入口向导”。</Text>
+              </div>
             </div>
+          ) : (
+            <div className="quick-panel">
+              {lastEntry ? (
+                <div className="quick-card">
+                  <Text strong>上次入口</Text>
+                  <div className="quick-path">{lastEntry.path}</div>
+                  <Space wrap style={{ marginTop: 8 }}>
+                    <Tag color={lastEntry.source === 'syncthing' ? 'blue' : 'green'}>
+                      {lastEntry.source === 'syncthing' ? 'Syncthing' : '本地'}
+                    </Tag>
+                    <Tag>{lastEntry.mode === 'create' ? '创建' : '打开'}</Tag>
+                  </Space>
+                  <div style={{ marginTop: 10 }}>
+                    <Button
+                      type="primary"
+                      onClick={() => fillQuickPath(lastEntry.path, lastEntry.source || 'local', lastEntry.mode || 'open')}
+                    >
+                      使用上次入口
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Text type="secondary">暂无上次入口，请先通过右侧表单完成一次连接。</Text>
+              )}
 
-            <div className="entry-card">
-              <Space align="start">
-                <SyncOutlined />
-                <div>
-                  <Text strong>Syncthing 入口</Text>
-                  <br />
-                  <Text type="secondary">示例：`D:/vault-sync/apikey-vault.db`（指向你的 Syncthing 同步目录）</Text>
-                  <br />
-                  <Button
-                    type="link"
-                    className="entry-link-btn"
-                    onClick={() => fillQuickPath('D:/vault-sync/apikey-vault.db', 'syncthing')}
-                  >
-                    填入 Syncthing 路径模板
+              <div className="quick-card">
+                <Text strong>新建入口向导</Text>
+                <br />
+                <Text type="secondary">用于切换到新的本地路径或 Syncthing 路径。</Text>
+                <div style={{ marginTop: 10 }}>
+                  <Button icon={<RocketOutlined />} onClick={() => setShowWizard(true)}>
+                    打开向导
                   </Button>
                 </div>
-              </Space>
+              </div>
             </div>
-          </div>
+          )}
 
           <Divider style={{ margin: '10px 0 12px' }} />
 
@@ -156,7 +194,7 @@ const Login = ({ onLogin }) => {
                     type="button"
                     key={item.path}
                     className="history-item"
-                    onClick={() => fillQuickPath(item.path, item.source || 'local')}
+                    onClick={() => fillQuickPath(item.path, item.source || 'local', item.mode || 'open')}
                   >
                     <span className="history-path">{item.path}</span>
                     <span className="history-meta">
