@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Form, Input, Button, message, Radio, Typography, Space, Tag, Empty } from 'antd';
+import { Form, Input, Button, message, Radio, Typography, Space, Tag, Empty } from 'antd';
 import {
   LockOutlined,
   DatabaseOutlined,
@@ -225,18 +225,13 @@ const Login = ({ onLogin }) => {
               </Button>
             </>
           )}
-        </section>
+          <div className="login-form-block">
+            <Title level={4} style={{ margin: 0 }}>
+              数据库连接
+            </Title>
+            <Text type="secondary">根据上方向导或入口选择，填写路径与密码后连接。</Text>
 
-        <Card className="glass-panel login-card" bordered={false}>
-          <Space direction="vertical" size={14} style={{ width: '100%' }}>
-            <div>
-              <Title level={4} style={{ margin: 0 }}>
-                数据库连接
-              </Title>
-              <Text type="secondary">根据左侧向导或入口选择，填写路径与密码后连接。</Text>
-            </div>
-
-            <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space wrap style={{ width: '100%', justifyContent: 'space-between', marginTop: 10 }}>
               <Radio.Group
                 value={source}
                 onChange={(e) => {
@@ -256,7 +251,7 @@ const Login = ({ onLogin }) => {
               </Radio.Group>
             </Space>
 
-            <Form form={form} onFinish={handleSubmit} layout="vertical" requiredMark={false}>
+            <Form form={form} onFinish={handleSubmit} layout="vertical" requiredMark={false} style={{ marginTop: 12 }}>
               <Form.Item
                 name="dbPath"
                 label={source === 'syncthing' ? '数据库路径（Syncthing）' : '数据库路径（本地）'}
@@ -309,14 +304,14 @@ const Login = ({ onLogin }) => {
                 </Form.Item>
               )}
 
-              <Form.Item style={{ marginBottom: 8 }}>
+              <Form.Item style={{ marginBottom: 0 }}>
                 <Button type="primary" htmlType="submit" loading={loading} block size="large">
                   {mode === 'create' ? '创建并进入' : '导入并进入'}
                 </Button>
               </Form.Item>
             </Form>
-          </Space>
-        </Card>
+          </div>
+        </section>
       </div>
     </div>
   );
