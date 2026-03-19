@@ -231,16 +231,12 @@ const Login = ({ onLogin }) => {
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
             <div>
               <Title level={4} style={{ margin: 0 }}>
-                {mode === 'create' ? '创建数据库' : '导入数据库'}
+                数据库连接
               </Title>
-              <Text type="secondary">填写数据库与同步配置。</Text>
+              <Text type="secondary">根据左侧向导或入口选择，填写路径与密码后连接。</Text>
             </div>
 
             <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)} buttonStyle="solid">
-                <Radio.Button value="open">导入</Radio.Button>
-                <Radio.Button value="create">创建</Radio.Button>
-              </Radio.Group>
               <Radio.Group
                 value={source}
                 onChange={(e) => {
