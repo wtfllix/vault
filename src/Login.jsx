@@ -5,8 +5,6 @@ import {
   DatabaseOutlined,
   SyncOutlined,
   FolderOpenOutlined,
-  PlusOutlined,
-  ImportOutlined,
   CompassOutlined
 } from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/core';
@@ -15,6 +13,11 @@ const { Title, Paragraph, Text } = Typography;
 const RECORDS_KEY = 'db_connection_records_v2';
 const ONBOARD_KEY = 'db_connection_onboarded_v2';
 const MAX_RECORDS = 8;
+const ACCESS_CHOICES = [
+  { key: 'create-local', label: '创建本地数据库' },
+  { key: 'import-local', label: '导入本地数据库' },
+  { key: 'import-syncthing', label: '导入 Syncthing 数据库' }
+];
 
 const defaultRecord = {
   source: 'local',
@@ -27,7 +30,7 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
   const [isFirstLaunch, setIsFirstLaunch] = useState(true);
-  const [wizardStep, setWizardStep] = useState('create');
+  const [wizardChoice, setWizardChoice] = useState('create-local');
   const [source, setSource] = useState('local');
   const [mode, setMode] = useState('create');
   const [form] = Form.useForm();
@@ -43,9 +46,10 @@ const Login = ({ onLogin }) => {
       if (!onboarded || nextRecords.length === 0) {
         setMode('create');
         setSource('local');
-        setWizardStep('create');
+        setWizardChoice('create-local');
       } else {
         setMode('open');
+        setWizardChoice('import-local');
       }
     } catch {
       setRecords([]);
@@ -72,6 +76,11 @@ const Login = ({ onLogin }) => {
   const applyRecord = (record) => {
     setSource(record.source || 'local');
     setMode(record.mode || 'open');
+    setWizardChoice(
+      (record.mode || 'open') === 'create'
+        ? 'create-local'
+        : (record.source === 'syncthing' ? 'import-syncthing' : 'import-local')
+    );
     form.setFieldsValue({
       dbPath: record.dbPath || '',
       syncPath: record.syncPath || ''
@@ -79,33 +88,29 @@ const Login = ({ onLogin }) => {
   };
 
   const applyWizardChoice = (choice) => {
-    if (choice === 'create') {
-      setWizardStep('create');
+    setWizardChoice(choice);
+    if (choice === 'create-local') {
       setMode('create');
       setSource('local');
       form.setFieldsValue({
         dbPath: 'apikey-vault.db',
         syncPath: 'D:/vault-sync/apikey-vault.db'
       });
-      return;
-    }
-
-    setWizardStep('import');
-    setMode('open');
-    if (choice === 'import-local') {
+    } else if (choice === 'import-local') {
       setSource('local');
+      setMode('open');
       form.setFieldsValue({
         dbPath: 'D:/secure/apikey-vault.db',
         syncPath: 'D:/vault-sync/apikey-vault.db'
       });
-      return;
+    } else {
+      setSource('syncthing');
+      setMode('open');
+      form.setFieldsValue({
+        dbPath: 'D:/vault-sync/apikey-vault.db',
+        syncPath: 'D:/vault-sync/apikey-vault.db'
+      });
     }
-
-    setSource('syncthing');
-    form.setFieldsValue({
-      dbPath: 'D:/vault-sync/apikey-vault.db',
-      syncPath: 'D:/vault-sync/apikey-vault.db'
-    });
   };
 
   const handleSubmit = async (values) => {
@@ -158,25 +163,20 @@ const Login = ({ onLogin }) => {
                   先确定数据库来源：本地创建，或导入现有数据库（本地 / Syncthing）。
                 </Paragraph>
               </div>
-              <div className="wizard-grid">
-                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('create')}>
-                  <PlusOutlined />
-                  <span>创建本地数据库</span>
-                </button>
-                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('import-local')}>
-                  <ImportOutlined />
-                  <span>导入本地数据库</span>
-                </button>
-                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('import-syncthing')}>
-                  <SyncOutlined />
-                  <span>导入 Syncthing 数据库</span>
-                </button>
-              </div>
+              <Radio.Group
+                value={wizardChoice}
+                onChange={(e) => applyWizardChoice(e.target.value)}
+                className="choice-tags"
+              >
+                {ACCESS_CHOICES.map((item) => (
+                  <Radio.Button key={item.key} value={item.key}>{item.label}</Radio.Button>
+                ))}
+              </Radio.Group>
               <div className="wizard-note">
-                <Tag color={wizardStep === 'create' ? 'green' : 'blue'}>
-                  {wizardStep === 'create' ? '当前: 创建向导' : '当前: 导入向导'}
+                <Tag color={mode === 'create' ? 'green' : 'blue'}>
+                  {mode === 'create' ? '当前: 创建流程' : '当前: 导入流程'}
                 </Tag>
-                <Text type="secondary">右侧表单已自动填入对应模板路径，可直接修改。</Text>
+                <Text type="secondary">已自动填入路径模板，可直接修改。</Text>
               </div>
             </>
           ) : (
@@ -220,7 +220,7 @@ const Login = ({ onLogin }) => {
                   </div>
                 </div>
               )}
-              <Button icon={<PlusOutlined />} onClick={() => setIsFirstLaunch(true)}>
+              <Button onClick={() => setIsFirstLaunch(true)}>
                 新建入口向导
               </Button>
             </>
@@ -233,21 +233,13 @@ const Login = ({ onLogin }) => {
 
             <Space wrap style={{ width: '100%', justifyContent: 'space-between', marginTop: 10 }}>
               <Radio.Group
-                value={source}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setSource(next);
-                  if (next === 'syncthing') {
-                    const current = form.getFieldValue('dbPath');
-                    if (current) {
-                      form.setFieldValue('syncPath', current);
-                    }
-                  }
-                }}
-                buttonStyle="solid"
+                value={wizardChoice}
+                onChange={(e) => applyWizardChoice(e.target.value)}
+                className="choice-tags"
               >
-                <Radio.Button value="local">本地</Radio.Button>
-                <Radio.Button value="syncthing">Syncthing</Radio.Button>
+                {ACCESS_CHOICES.map((item) => (
+                  <Radio.Button key={item.key} value={item.key}>{item.label}</Radio.Button>
+                ))}
               </Radio.Group>
             </Space>
 
