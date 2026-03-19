@@ -37,3 +37,6 @@
 - Never commit real API keys, database files, or plaintext secrets.
 - Review `src-tauri/tauri.conf.json` allowlist changes carefully; keep permissions minimal.
 - Validate error messages to avoid exposing sensitive crypto or storage details.
+
+## Collaboration Note
+- 如果遇到本地权限问题（如沙箱限制、提权受限、网络受限），请先让我手动在本地执行相关命令，再继续后续步骤。

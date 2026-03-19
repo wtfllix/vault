@@ -25,7 +25,7 @@ impl Database {
         
         // 设置 SQLCipher 密钥
         let key = crypto.get_sqlcipher_key();
-        conn.execute(&format!("PRAGMA key = {}", key), [])?;
+        conn.execute_batch(&format!("PRAGMA key = \"{}\";", key))?;
         
         // 验证密钥（尝试查询）
         conn.execute("SELECT count(*) FROM sqlite_master", [])
