@@ -13,8 +13,11 @@
     "windows": [
       {
         "title": "API Key 保险箱",
-        "width": 1200,
-        "height": 800,
+        "width": 560,
+        "height": 720,
+        "minWidth": 520,
+        "minHeight": 640,
+        "center": true,
         "decorations": true,
         "resizable": true,
         "fullscreen": false
