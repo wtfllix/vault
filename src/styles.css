@@ -37,6 +37,70 @@ body {
   padding: 24px;
 }
 
+.app-content {
+  min-height: 100vh;
+  padding-top: 52px;
+}
+
+.titlebar {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 1000;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+}
+
+.titlebar-drag {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+}
+
+.titlebar-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.titlebar-btn {
+  border: 0;
+  width: 38px;
+  height: 42px;
+  cursor: pointer;
+  color: #3c5044;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.titlebar-btn:hover {
+  background: rgba(39, 93, 70, 0.12);
+}
+
+.titlebar-btn-close:hover {
+  color: #fff;
+  background: #c4362a;
+}
+
 .glass-panel {
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.7);
@@ -189,6 +253,16 @@ body {
 @media (max-width: 980px) {
   .app-shell {
     padding: 14px;
+  }
+
+  .app-content {
+    padding-top: 48px;
+  }
+
+  .titlebar {
+    top: 6px;
+    left: 6px;
+    right: 6px;
   }
 
   .login-layout {

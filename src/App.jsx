@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Login from './Login';
 import Home from './Home';
+import WindowTitleBar from './WindowTitleBar';
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,10 +17,17 @@ const App = () => {
     setDbPath('');
   };
 
-  return isLoggedIn ? (
-    <Home dbPath={dbPath} onLogout={handleLogout} />
-  ) : (
-    <Login onLogin={handleLogin} />
+  return (
+    <>
+      <WindowTitleBar />
+      <main className="app-content">
+        {isLoggedIn ? (
+          <Home dbPath={dbPath} onLogout={handleLogout} />
+        ) : (
+          <Login onLogin={handleLogin} />
+        )}
+      </main>
+    </>
   );
 };
 
