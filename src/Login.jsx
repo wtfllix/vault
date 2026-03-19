@@ -163,20 +163,11 @@ const Login = ({ onLogin }) => {
                   先确定数据库来源：本地创建，或导入现有数据库（本地 / Syncthing）。
                 </Paragraph>
               </div>
-              <Radio.Group
-                value={wizardChoice}
-                onChange={(e) => applyWizardChoice(e.target.value)}
-                className="choice-tags"
-              >
-                {ACCESS_CHOICES.map((item) => (
-                  <Radio.Button key={item.key} value={item.key}>{item.label}</Radio.Button>
-                ))}
-              </Radio.Group>
               <div className="wizard-note">
                 <Tag color={mode === 'create' ? 'green' : 'blue'}>
                   {mode === 'create' ? '当前: 创建流程' : '当前: 导入流程'}
                 </Tag>
-                <Text type="secondary">已自动填入路径模板，可直接修改。</Text>
+                <Text type="secondary">请在下方标签中选择入口类型，路径会自动填入模板。</Text>
               </div>
             </>
           ) : (
