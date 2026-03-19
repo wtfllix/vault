@@ -172,6 +172,72 @@ body {
   padding: 20px;
 }
 
+.entry-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.entry-card {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.entry-link-btn {
+  padding-left: 0;
+  margin-top: 2px;
+}
+
+.history-block {
+  display: grid;
+  gap: 10px;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.history-item {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  padding: 8px 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.history-item:hover {
+  border-color: #9db8a8;
+  box-shadow: 0 4px 10px rgba(39, 93, 70, 0.08);
+}
+
+.history-path {
+  display: block;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  color: #2f4338;
+  word-break: break-all;
+}
+
+.history-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .home-wrap {
   max-width: 1280px;
   margin: 0 auto;
