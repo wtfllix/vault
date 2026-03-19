@@ -209,6 +209,94 @@ body {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
 }
 
+.wizard-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.wizard-choice {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.wizard-choice:hover {
+  border-color: #8faf9e;
+}
+
+.wizard-note {
+  display: grid;
+  gap: 6px;
+}
+
+.record-circle-wrap {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-circle {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  border: 1px dashed #b8cabf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-center {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 1px solid #9fb5a8;
+  background: #f6fbf8;
+  color: #2f5341;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+
+.record-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -34px;
+  margin-top: -34px;
+  width: 68px;
+  height: 68px;
+  border-radius: 999px;
+  border: 1px solid #a9c0b3;
+  background: #fff;
+  cursor: pointer;
+  padding: 6px 4px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+}
+
+.record-node:hover {
+  border-color: #6a8f7b;
+}
+
+.record-node-label {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.record-node-tag {
+  font-size: 9px;
+  color: #4d7260;
+}
+
 .entry-card {
   background: var(--surface-strong);
   border: 1px solid var(--line);
@@ -325,6 +413,42 @@ body {
   padding: 14px;
 }
 
+.type-columns {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.type-column {
+  min-height: 260px;
+}
+
+.secret-list {
+  display: grid;
+  gap: 10px;
+}
+
+.secret-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+}
+
+.secret-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.secret-preview {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
 .detail-row {
   margin-bottom: 12px;
 }
@@ -379,6 +503,10 @@ body {
 
   .metric-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .type-columns {
+    grid-template-columns: 1fr;
   }
 
   .home-header {

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Card, Button, Table, Tag, Modal, Form, Input, Select,
-  Space, Popconfirm, message, Typography, Empty
+  Card, Button, Modal, Form, Input, Select,
+  Space, Popconfirm, message, Typography, Empty, Tag
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, CopyOutlined,
@@ -16,21 +16,23 @@ const { Option } = Select;
 
 const SECRET_TYPES = {
   apikey: { label: 'API Key', icon: <KeyOutlined />, fields: ['key'] },
-  password: { label: '账号密码', icon: <UserOutlined />, fields: ['url', 'username', 'password'] },
+  ssh: { label: 'SSH 公钥', icon: <KeyOutlined />, fields: ['privateKey', 'publicKey', 'passphrase'] },
+  password: { label: '密码', icon: <UserOutlined />, fields: ['url', 'username', 'password'] },
   database: { label: '数据库', icon: <DatabaseOutlined />, fields: ['type', 'host', 'port', 'username', 'password', 'database'] },
-  ssh: { label: 'SSH 密钥', icon: <KeyOutlined />, fields: ['privateKey', 'publicKey', 'passphrase'] },
-  custom: { label: '自定义', icon: <FileTextOutlined />, fields: ['content'] }
+  custom: { label: '其他', icon: <FileTextOutlined />, fields: ['content'] }
 };
+
+const COLUMN_ORDER = ['apikey', 'ssh', 'password', 'database', 'custom'];
 
 const Home = ({ dbPath, onLogout }) => {
   const [secrets, setSecrets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [secretType, setSecretType] = useState('apikey');
   const [query, setQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [form] = Form.useForm();
 
   const fetchSecrets = async () => {
@@ -51,34 +53,31 @@ const Home = ({ dbPath, onLogout }) => {
 
   const filteredSecrets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return secrets;
+    }
+
     return secrets.filter((item) => {
-      const byType = filterType === 'all' || item.secret_type === filterType;
-      const byText = !normalizedQuery
-        || item.name.toLowerCase().includes(normalizedQuery)
-        || (item.note || '').toLowerCase().includes(normalizedQuery);
-      return byType && byText;
+      const typeLabel = (SECRET_TYPES[item.secret_type]?.label || item.secret_type).toLowerCase();
+      return item.name.toLowerCase().includes(normalizedQuery)
+        || item.secret_type.toLowerCase().includes(normalizedQuery)
+        || typeLabel.includes(normalizedQuery);
     });
-  }, [secrets, query, filterType]);
+  }, [secrets, query]);
 
-  const metrics = useMemo(() => {
-    const typeCount = Object.keys(SECRET_TYPES).reduce((acc, key) => {
-      acc[key] = 0;
-      return acc;
-    }, {});
-
-    secrets.forEach((item) => {
-      if (typeCount[item.secret_type] !== undefined) {
-        typeCount[item.secret_type] += 1;
-      }
+  const groupedSecrets = useMemo(() => {
+    const groups = {};
+    COLUMN_ORDER.forEach((key) => {
+      groups[key] = [];
     });
 
-    return {
-      total: secrets.length,
-      apikey: typeCount.apikey,
-      database: typeCount.database,
-      account: typeCount.password
-    };
-  }, [secrets]);
+    filteredSecrets.forEach((item) => {
+      const key = COLUMN_ORDER.includes(item.secret_type) ? item.secret_type : 'custom';
+      groups[key].push(item);
+    });
+
+    return groups;
+  }, [filteredSecrets]);
 
   const handleAdd = async (values) => {
     try {
@@ -136,72 +135,27 @@ const Home = ({ dbPath, onLogout }) => {
     }
   };
 
-  const renderSecretValue = (record) => {
+  const handleExit = async () => {
+    setLogoutLoading(true);
+    try {
+      await onLogout();
+    } finally {
+      setLogoutLoading(false);
+    }
+  };
+
+  const renderPreview = (record) => {
     try {
       const data = JSON.parse(record.encrypted_data);
-      switch (record.secret_type) {
-        case 'apikey':
-          return data.key ? `${data.key.substring(0, 10)}...` : '***';
-        case 'password':
-          return data.username ? `${data.username} / ****` : '****';
-        case 'database':
-          return `${data.host || 'host'}:${data.port || 'port'}`;
-        case 'ssh':
-          return data.publicKey ? `${data.publicKey.substring(0, 20)}...` : 'SSH Key';
-        default:
-          return '***';
+      const values = Object.values(data).filter(Boolean).map((v) => String(v));
+      if (values.length === 0) {
+        return '无内容';
       }
+      return values[0].length > 26 ? `${values[0].slice(0, 26)}...` : values[0];
     } catch {
       return '***';
     }
   };
-
-  const columns = [
-    {
-      title: '类型',
-      dataIndex: 'secret_type',
-      key: 'type',
-      width: 140,
-      render: (type) => (
-        <Tag icon={SECRET_TYPES[type]?.icon} color="green">
-          {SECRET_TYPES[type]?.label || type}
-        </Tag>
-      )
-    },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name'
-    },
-    {
-      title: '内容预览',
-      key: 'preview',
-      render: (_, record) => <code>{renderSecretValue(record)}</code>
-    },
-    {
-      title: '备注',
-      dataIndex: 'note',
-      key: 'note',
-      ellipsis: true
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 180,
-      render: (_, record) => (
-        <Space>
-          <Button icon={<EyeOutlined />} onClick={() => handleView(record)} size="small">
-            查看
-          </Button>
-          <Popconfirm title="确认删除该条密钥吗？" onConfirm={() => handleDelete(record.id)}>
-            <Button icon={<DeleteOutlined />} danger size="small">
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      )
-    }
-  ];
 
   const renderFormFields = () => {
     const fields = SECRET_TYPES[secretType].fields;
@@ -210,7 +164,7 @@ const Home = ({ dbPath, onLogout }) => {
       switch (field) {
         case 'key':
           return (
-            <Form.Item key={field} name={field} label="API Key" rules={[{ required: true, message: '请输入 API Key' }]}> 
+            <Form.Item key={field} name={field} label="API Key" rules={[{ required: true, message: '请输入 API Key' }]}>
               <Input.TextArea rows={3} placeholder="输入 API Key" />
             </Form.Item>
           );
@@ -281,7 +235,7 @@ const Home = ({ dbPath, onLogout }) => {
           );
         case 'content':
           return (
-            <Form.Item key={field} name={field} label="内容" rules={[{ required: true, message: '请输入内容' }]}> 
+            <Form.Item key={field} name={field} label="内容" rules={[{ required: true, message: '请输入内容' }]}>
               <Input.TextArea rows={4} placeholder="输入任意内容" />
             </Form.Item>
           );
@@ -300,65 +254,68 @@ const Home = ({ dbPath, onLogout }) => {
             <div className="home-meta">当前数据库: {dbPath}</div>
           </div>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchSecrets}>刷新</Button>
-            <Button icon={<LogoutOutlined />} onClick={onLogout}>退出</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchSecrets} loading={loading}>刷新</Button>
+            <Button icon={<LogoutOutlined />} onClick={handleExit} loading={logoutLoading}>退出并同步</Button>
           </Space>
         </Card>
 
-        <div className="metric-grid">
-          <div className="metric-card glass-panel">
-            <div className="metric-label">总密钥数</div>
-            <div className="metric-value">{metrics.total}</div>
-          </div>
-          <div className="metric-card glass-panel">
-            <div className="metric-label">API Key</div>
-            <div className="metric-value">{metrics.apikey}</div>
-          </div>
-          <div className="metric-card glass-panel">
-            <div className="metric-label">数据库账号</div>
-            <div className="metric-value">{metrics.database}</div>
-          </div>
-          <div className="metric-card glass-panel">
-            <div className="metric-label">网站账号</div>
-            <div className="metric-value">{metrics.account}</div>
-          </div>
-        </div>
-
         <Card className="glass-panel toolbar-card" bordered={false}>
           <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Space wrap>
-              <Input
-                allowClear
-                prefix={<SearchOutlined />}
-                placeholder="搜索名称或备注"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                style={{ width: 280 }}
-              />
-              <Select value={filterType} onChange={setFilterType} style={{ width: 180 }}>
-                <Option value="all">全部类型</Option>
-                {Object.entries(SECRET_TYPES).map(([key, item]) => (
-                  <Option key={key} value={key}>{item.label}</Option>
-                ))}
-              </Select>
-            </Space>
-
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="模糊搜索名称或类型"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{ width: 320 }}
+            />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
               添加密钥
             </Button>
           </Space>
         </Card>
 
-        <Card className="glass-panel" bordered={false}>
-          <Table
-            columns={columns}
-            dataSource={filteredSecrets}
-            rowKey="id"
-            loading={loading}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
-            locale={{ emptyText: <Empty description="当前没有匹配的密钥" /> }}
-          />
-        </Card>
+        <div className="type-columns">
+          {COLUMN_ORDER.map((key) => {
+            const item = SECRET_TYPES[key];
+            const list = groupedSecrets[key] || [];
+            return (
+              <Card
+                key={key}
+                className="glass-panel type-column"
+                bordered={false}
+                title={(
+                  <Space>
+                    {item.icon}
+                    <span>{item.label}</span>
+                    <Tag>{list.length}</Tag>
+                  </Space>
+                )}
+              >
+                {list.length === 0 ? (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无数据" />
+                ) : (
+                  <div className="secret-list">
+                    {list.map((record) => (
+                      <div key={record.id} className="secret-item">
+                        <div className="secret-item-head">
+                          <Text strong>{record.name}</Text>
+                          <Space size={4}>
+                            <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(record)} />
+                            <Popconfirm title="确认删除该条密钥吗？" onConfirm={() => handleDelete(record.id)}>
+                              <Button type="text" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        </div>
+                        <Text type="secondary" className="secret-preview">{renderPreview(record)}</Text>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       <Modal
@@ -374,7 +331,7 @@ const Home = ({ dbPath, onLogout }) => {
         destroyOnClose
       >
         <Form form={form} onFinish={handleAdd} layout="vertical" requiredMark={false}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}> 
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="给这个密钥起个名字" />
           </Form.Item>
 
@@ -405,7 +362,6 @@ const Home = ({ dbPath, onLogout }) => {
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Text><Text strong>名称：</Text>{selectedSecret.name}</Text>
             <Text><Text strong>类型：</Text>{SECRET_TYPES[selectedSecret.secret_type]?.label}</Text>
-
             {(() => {
               try {
                 const data = JSON.parse(selectedSecret.encrypted_data);
@@ -426,7 +382,6 @@ const Home = ({ dbPath, onLogout }) => {
                 return <Text type="danger">无法解析数据</Text>;
               }
             })()}
-
             {selectedSecret.note && <Text><Text strong>备注：</Text>{selectedSecret.note}</Text>}
           </Space>
         )}

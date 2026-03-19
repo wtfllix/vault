@@ -6,6 +6,7 @@ mod db;
 use crypto::DbCrypto;
 use db::Database;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -88,6 +89,36 @@ fn get_secret_detail(id: i64, state: State<AppState>) -> Result<Secret, String> 
     db.get_secret_by_id(id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn sync_to_syncthing(source_path: String, target_path: String, state: State<AppState>) -> Result<(), String> {
+    {
+        let mut state_db = state.db.lock().unwrap();
+        *state_db = None;
+    }
+
+    if source_path.trim().is_empty() || target_path.trim().is_empty() {
+        return Err("同步路径不能为空".to_string());
+    }
+
+    let source = Path::new(&source_path);
+    let target = Path::new(&target_path);
+
+    if !source.exists() {
+        return Err("源数据库不存在".to_string());
+    }
+
+    if source == target {
+        return Ok(());
+    }
+
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    std::fs::copy(source, target).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
@@ -99,7 +130,8 @@ fn main() {
             get_secrets,
             add_secret,
             delete_secret,
-            get_secret_detail
+            get_secret_detail,
+            sync_to_syncthing
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

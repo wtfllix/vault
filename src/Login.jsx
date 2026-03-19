@@ -1,93 +1,144 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Form, Input, Button, message, Radio, Typography, Space, Tag, Divider } from 'antd';
+import { Card, Form, Input, Button, message, Radio, Typography, Space, Tag, Empty } from 'antd';
 import {
   LockOutlined,
   DatabaseOutlined,
   SyncOutlined,
-  HistoryOutlined,
   FolderOpenOutlined,
-  DeleteOutlined,
-  RocketOutlined
+  PlusOutlined,
+  ImportOutlined,
+  CompassOutlined
 } from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/core';
 
 const { Title, Paragraph, Text } = Typography;
-const HISTORY_KEY = 'db_connection_history_v1';
-const ONBOARD_KEY = 'db_connection_onboarded_v1';
-const MAX_HISTORY = 8;
+const RECORDS_KEY = 'db_connection_records_v2';
+const ONBOARD_KEY = 'db_connection_onboarded_v2';
+const MAX_RECORDS = 8;
+
+const defaultRecord = {
+  source: 'local',
+  mode: 'open',
+  dbPath: 'apikey-vault.db',
+  syncPath: 'D:/vault-sync/apikey-vault.db'
+};
 
 const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('open');
-  const [history, setHistory] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [isFirstLaunch, setIsFirstLaunch] = useState(true);
+  const [wizardStep, setWizardStep] = useState('create');
   const [source, setSource] = useState('local');
-  const [showWizard, setShowWizard] = useState(true);
+  const [mode, setMode] = useState('create');
   const [form] = Form.useForm();
 
   useEffect(() => {
-    form.setFieldsValue({ dbPath: 'apikey-vault.db' });
+    form.setFieldsValue(defaultRecord);
     try {
-      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-      const nextHistory = Array.isArray(saved) ? saved : [];
+      const saved = JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]');
+      const nextRecords = Array.isArray(saved) ? saved : [];
       const onboarded = localStorage.getItem(ONBOARD_KEY) === '1';
-      setHistory(nextHistory);
-      setShowWizard(!(onboarded && nextHistory.length > 0));
+      setRecords(nextRecords);
+      setIsFirstLaunch(!(onboarded && nextRecords.length > 0));
+      if (!onboarded || nextRecords.length === 0) {
+        setMode('create');
+        setSource('local');
+        setWizardStep('create');
+      } else {
+        setMode('open');
+      }
     } catch {
-      setHistory([]);
-      setShowWizard(true);
+      setRecords([]);
+      setIsFirstLaunch(true);
     }
   }, []);
 
-  const historyCount = useMemo(() => history.length, [history]);
-  const lastEntry = history[0] || null;
+  const circleRecords = useMemo(() => records.slice(0, 6), [records]);
 
-  const saveHistory = (path, usedMode, usedSource) => {
-    const item = {
-      path,
-      mode: usedMode,
-      source: usedSource,
+  const saveRecord = (payload) => {
+    const normalized = {
+      source: payload.source,
+      mode: payload.mode,
+      dbPath: payload.dbPath,
+      syncPath: payload.syncPath,
       lastUsedAt: new Date().toISOString()
     };
-    const next = [item, ...history.filter((h) => h.path !== path)].slice(0, MAX_HISTORY);
-    setHistory(next);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    const next = [normalized, ...records.filter((r) => r.dbPath !== payload.dbPath)].slice(0, MAX_RECORDS);
+    setRecords(next);
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(next));
     localStorage.setItem(ONBOARD_KEY, '1');
   };
 
-  const fillQuickPath = (nextPath, nextSource, nextMode = 'open') => {
-    form.setFieldsValue({ dbPath: nextPath });
-    setMode(nextMode);
-    setSource(nextSource);
+  const applyRecord = (record) => {
+    setSource(record.source || 'local');
+    setMode(record.mode || 'open');
+    form.setFieldsValue({
+      dbPath: record.dbPath || '',
+      syncPath: record.syncPath || ''
+    });
   };
 
-  const clearHistory = () => {
-    setHistory([]);
-    localStorage.removeItem(HISTORY_KEY);
-    message.success('连接历史已清空');
+  const applyWizardChoice = (choice) => {
+    if (choice === 'create') {
+      setWizardStep('create');
+      setMode('create');
+      setSource('local');
+      form.setFieldsValue({
+        dbPath: 'apikey-vault.db',
+        syncPath: 'D:/vault-sync/apikey-vault.db'
+      });
+      return;
+    }
+
+    setWizardStep('import');
+    setMode('open');
+    if (choice === 'import-local') {
+      setSource('local');
+      form.setFieldsValue({
+        dbPath: 'D:/secure/apikey-vault.db',
+        syncPath: 'D:/vault-sync/apikey-vault.db'
+      });
+      return;
+    }
+
+    setSource('syncthing');
+    form.setFieldsValue({
+      dbPath: 'D:/vault-sync/apikey-vault.db',
+      syncPath: 'D:/vault-sync/apikey-vault.db'
+    });
   };
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      const path = values.dbPath || 'apikey-vault.db';
+      const dbPath = values.dbPath?.trim();
+      const syncPath = values.syncPath?.trim();
+
+      if (!dbPath || !syncPath) {
+        message.error('请填写数据库路径和 Syncthing 同步路径');
+        return;
+      }
 
       if (mode === 'open') {
-        const exists = await invoke('db_exists', { path });
+        const exists = await invoke('db_exists', { path: dbPath });
         if (!exists) {
-          message.error('数据库不存在。请先确认路径，或切换创建模式初始化。');
+          message.error('数据库不存在，请确认路径或切换创建模式。');
           return;
         }
       }
 
-      await invoke('init_db', {
-        password: values.password,
-        path
-      });
+      await invoke('init_db', { password: values.password, path: dbPath });
 
-      saveHistory(path, mode, source);
-      setShowWizard(false);
-      message.success(mode === 'create' ? '保险箱创建成功' : '保险箱已解锁');
-      onLogin(path);
+      const session = {
+        dbPath,
+        syncPath,
+        source,
+        mode
+      };
+      saveRecord(session);
+      setIsFirstLaunch(false);
+      message.success(mode === 'create' ? '数据库创建成功' : '数据库已导入');
+      onLogin(session);
     } catch (error) {
       message.error(`密码错误或操作失败: ${error}`);
     } finally {
@@ -99,132 +150,111 @@ const Login = ({ onLogin }) => {
     <div className="app-shell page-enter">
       <div className="login-layout">
         <section className="glass-panel login-hero">
-          <div>
-            <Title className="login-title">{showWizard ? '首次连接向导' : '快速连接入口'}</Title>
-            <Paragraph className="login-subtitle">
-              {showWizard
-                ? '按照向导完成来源与路径设置，首次连接后将自动保存入口。'
-                : '已为你准备上次入口。也可以随时进入向导创建新的连接入口。'}
-            </Paragraph>
-          </div>
-
-          {showWizard ? (
-            <div className="wizard-panel">
-              <div className="wizard-step">
-                <Text strong>步骤 1：选择存储来源</Text>
-                <Space wrap style={{ marginTop: 8 }}>
-                  <Button onClick={() => fillQuickPath('apikey-vault.db', 'local')} icon={<FolderOpenOutlined />}>
-                    本地文件
-                  </Button>
-                  <Button onClick={() => fillQuickPath('D:/vault-sync/apikey-vault.db', 'syncthing')} icon={<SyncOutlined />}>
-                    Syncthing 目录
-                  </Button>
-                </Space>
+          {isFirstLaunch ? (
+            <>
+              <div>
+                <Title className="login-title">首次启动向导</Title>
+                <Paragraph className="login-subtitle">
+                  先确定数据库来源：本地创建，或导入现有数据库（本地 / Syncthing）。
+                </Paragraph>
               </div>
-              <div className="wizard-step">
-                <Text strong>步骤 2：选择打开或创建</Text>
-                <Space wrap style={{ marginTop: 8 }}>
-                  <Button onClick={() => setMode('open')}>打开已有库</Button>
-                  <Button onClick={() => setMode('create')}>创建新库</Button>
-                </Space>
+              <div className="wizard-grid">
+                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('create')}>
+                  <PlusOutlined />
+                  <span>创建本地数据库</span>
+                </button>
+                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('import-local')}>
+                  <ImportOutlined />
+                  <span>导入本地数据库</span>
+                </button>
+                <button type="button" className="wizard-choice" onClick={() => applyWizardChoice('import-syncthing')}>
+                  <SyncOutlined />
+                  <span>导入 Syncthing 数据库</span>
+                </button>
               </div>
-              <div className="wizard-step">
-                <Text strong>步骤 3：在右侧输入主密码并连接</Text>
-                <br />
-                <Text type="secondary">连接成功后，下次将自动显示“上次入口 + 新建入口向导”。</Text>
+              <div className="wizard-note">
+                <Tag color={wizardStep === 'create' ? 'green' : 'blue'}>
+                  {wizardStep === 'create' ? '当前: 创建向导' : '当前: 导入向导'}
+                </Tag>
+                <Text type="secondary">右侧表单已自动填入对应模板路径，可直接修改。</Text>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="quick-panel">
-              {lastEntry ? (
-                <div className="quick-card">
-                  <Text strong>上次入口</Text>
-                  <div className="quick-path">{lastEntry.path}</div>
-                  <Space wrap style={{ marginTop: 8 }}>
-                    <Tag color={lastEntry.source === 'syncthing' ? 'blue' : 'green'}>
-                      {lastEntry.source === 'syncthing' ? 'Syncthing' : '本地'}
-                    </Tag>
-                    <Tag>{lastEntry.mode === 'create' ? '创建' : '打开'}</Tag>
-                  </Space>
-                  <div style={{ marginTop: 10 }}>
-                    <Button
-                      type="primary"
-                      onClick={() => fillQuickPath(lastEntry.path, lastEntry.source || 'local', lastEntry.mode || 'open')}
-                    >
-                      使用上次入口
-                    </Button>
+            <>
+              <div>
+                <Title className="login-title">选择已存在的数据库入口</Title>
+                <Paragraph className="login-subtitle">
+                  点击圆形入口快速回填路径，像常规登录页一样先选用户再输入密码。
+                </Paragraph>
+              </div>
+              {circleRecords.length === 0 ? (
+                <Empty description="暂无可用记录，点击下方新建向导创建入口" />
+              ) : (
+                <div className="record-circle-wrap">
+                  <div className="record-circle">
+                    <div className="record-center">
+                      <CompassOutlined />
+                      <span>入口</span>
+                    </div>
+                    {circleRecords.map((record, idx) => {
+                      const count = circleRecords.length;
+                      const angle = (Math.PI * 2 * idx) / count - Math.PI / 2;
+                      const radius = count === 1 ? 0 : 118;
+                      const x = Math.cos(angle) * radius;
+                      const y = Math.sin(angle) * radius;
+                      const label = record.dbPath.split(/[\\/]/).pop() || record.dbPath;
+                      return (
+                        <button
+                          key={`${record.dbPath}-${idx}`}
+                          type="button"
+                          className="record-node"
+                          style={{ transform: `translate(${x}px, ${y}px)` }}
+                          onClick={() => applyRecord(record)}
+                          title={record.dbPath}
+                        >
+                          <span className="record-node-label">{label.slice(0, 16)}</span>
+                          <span className="record-node-tag">{record.source === 'syncthing' ? 'Syncthing' : '本地'}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              ) : (
-                <Text type="secondary">暂无上次入口，请先通过右侧表单完成一次连接。</Text>
               )}
-
-              <div className="quick-card">
-                <Text strong>新建入口向导</Text>
-                <br />
-                <Text type="secondary">用于切换到新的本地路径或 Syncthing 路径。</Text>
-                <div style={{ marginTop: 10 }}>
-                  <Button icon={<RocketOutlined />} onClick={() => setShowWizard(true)}>
-                    打开向导
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <Divider style={{ margin: '10px 0 12px' }} />
-
-          <div className="history-block">
-            <div className="history-head">
-              <Space>
-                <HistoryOutlined />
-                <Text strong>最近连接 ({historyCount})</Text>
-              </Space>
-              <Button type="link" icon={<DeleteOutlined />} onClick={clearHistory} disabled={historyCount === 0}>
-                清空历史
+              <Button icon={<PlusOutlined />} onClick={() => setIsFirstLaunch(true)}>
+                新建入口向导
               </Button>
-            </div>
-
-            {historyCount === 0 ? (
-              <Text type="secondary">暂无历史记录。成功连接后会自动保存。</Text>
-            ) : (
-              <div className="history-list">
-                {history.map((item) => (
-                  <button
-                    type="button"
-                    key={item.path}
-                    className="history-item"
-                    onClick={() => fillQuickPath(item.path, item.source || 'local', item.mode || 'open')}
-                  >
-                    <span className="history-path">{item.path}</span>
-                    <span className="history-meta">
-                      <Tag color={item.source === 'syncthing' ? 'blue' : 'green'}>
-                        {item.source === 'syncthing' ? 'Syncthing' : '本地'}
-                      </Tag>
-                      <Tag>{item.mode === 'create' ? '创建' : '打开'}</Tag>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </section>
 
         <Card className="glass-panel login-card" bordered={false}>
           <Space direction="vertical" size={14} style={{ width: '100%' }}>
             <div>
               <Title level={4} style={{ margin: 0 }}>
-                {mode === 'create' ? '创建新保险箱' : '打开已有保险箱'}
+                {mode === 'create' ? '创建数据库' : '导入数据库'}
               </Title>
-              <Text type="secondary">输入数据库路径与主密码，然后连接。</Text>
+              <Text type="secondary">填写数据库与同步配置。</Text>
             </div>
 
-            <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+            <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
               <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)} buttonStyle="solid">
-                <Radio.Button value="open">打开</Radio.Button>
+                <Radio.Button value="open">导入</Radio.Button>
                 <Radio.Button value="create">创建</Radio.Button>
               </Radio.Group>
-              <Radio.Group value={source} onChange={(e) => setSource(e.target.value)} buttonStyle="solid">
+              <Radio.Group
+                value={source}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setSource(next);
+                  if (next === 'syncthing') {
+                    const current = form.getFieldValue('dbPath');
+                    if (current) {
+                      form.setFieldValue('syncPath', current);
+                    }
+                  }
+                }}
+                buttonStyle="solid"
+              >
                 <Radio.Button value="local">本地</Radio.Button>
                 <Radio.Button value="syncthing">Syncthing</Radio.Button>
               </Radio.Group>
@@ -233,14 +263,22 @@ const Login = ({ onLogin }) => {
             <Form form={form} onFinish={handleSubmit} layout="vertical" requiredMark={false}>
               <Form.Item
                 name="dbPath"
-                label={source === 'syncthing' ? 'Syncthing 数据库路径' : '数据库路径'}
-                tooltip={source === 'syncthing' ? '请确保该路径位于 Syncthing 同步目录' : '建议使用绝对路径，避免误开新库'}
+                label={source === 'syncthing' ? '数据库路径（Syncthing）' : '数据库路径（本地）'}
                 rules={[{ required: true, message: '请输入数据库路径' }]}
               >
                 <Input
-                  prefix={source === 'syncthing' ? <SyncOutlined /> : <DatabaseOutlined />}
-                  placeholder={source === 'syncthing' ? '例如 D:/vault-sync/apikey-vault.db' : '例如 C:/secure/apikey-vault.db'}
+                  prefix={source === 'syncthing' ? <SyncOutlined /> : <FolderOpenOutlined />}
+                  placeholder={source === 'syncthing' ? '例如 D:/vault-sync/apikey-vault.db' : '例如 D:/secure/apikey-vault.db'}
                 />
+              </Form.Item>
+
+              <Form.Item
+                name="syncPath"
+                label="Syncthing 同步目标路径"
+                tooltip="每次退出应用会自动把当前数据库同步到该路径"
+                rules={[{ required: true, message: '请输入同步路径' }]}
+              >
+                <Input prefix={<DatabaseOutlined />} placeholder="例如 D:/vault-sync/apikey-vault.db" />
               </Form.Item>
 
               <Form.Item
@@ -277,14 +315,10 @@ const Login = ({ onLogin }) => {
 
               <Form.Item style={{ marginBottom: 8 }}>
                 <Button type="primary" htmlType="submit" loading={loading} block size="large">
-                  {mode === 'create' ? '创建并进入' : '连接并进入'}
+                  {mode === 'create' ? '创建并进入' : '导入并进入'}
                 </Button>
               </Form.Item>
             </Form>
-
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              连接成功后路径会自动加入历史。忘记主密码将无法恢复数据库内容。
-            </Text>
           </Space>
         </Card>
       </div>
