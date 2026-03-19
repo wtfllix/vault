@@ -3,7 +3,7 @@ import { Card, Form, Input, Button, message, Radio, Typography, Space, Tag, Divi
 import {
   LockOutlined,
   DatabaseOutlined,
-  LinkOutlined,
+  SyncOutlined,
   HistoryOutlined,
   FolderOpenOutlined,
   DeleteOutlined
@@ -94,7 +94,7 @@ const Login = ({ onLogin }) => {
           <div>
             <Title className="login-title">数据库连接中心</Title>
             <Paragraph className="login-subtitle">
-              在进入保险箱前，先选择数据库入口。支持本地文件和已挂载网络路径，并保存最近连接记录。
+              在进入保险箱前，先选择数据库入口。支持本地文件和 Syncthing 同步目录，并保存最近连接记录。
             </Paragraph>
           </div>
 
@@ -116,18 +116,18 @@ const Login = ({ onLogin }) => {
 
             <div className="entry-card">
               <Space align="start">
-                <LinkOutlined />
+                <SyncOutlined />
                 <div>
-                  <Text strong>网络挂载入口</Text>
+                  <Text strong>Syncthing 入口</Text>
                   <br />
-                  <Text type="secondary">示例：`\\\\NAS\\vault\\apikey-vault.db`（先在系统中挂载共享目录）</Text>
+                  <Text type="secondary">示例：`D:/vault-sync/apikey-vault.db`（指向你的 Syncthing 同步目录）</Text>
                   <br />
                   <Button
                     type="link"
                     className="entry-link-btn"
-                    onClick={() => fillQuickPath('\\\\NAS\\vault\\apikey-vault.db', 'network')}
+                    onClick={() => fillQuickPath('D:/vault-sync/apikey-vault.db', 'syncthing')}
                   >
-                    填入网络路径模板
+                    填入 Syncthing 路径模板
                   </Button>
                 </div>
               </Space>
@@ -160,8 +160,8 @@ const Login = ({ onLogin }) => {
                   >
                     <span className="history-path">{item.path}</span>
                     <span className="history-meta">
-                      <Tag color={item.source === 'network' ? 'gold' : 'green'}>
-                        {item.source === 'network' ? '网络' : '本地'}
+                      <Tag color={item.source === 'syncthing' ? 'blue' : 'green'}>
+                        {item.source === 'syncthing' ? 'Syncthing' : '本地'}
                       </Tag>
                       <Tag>{item.mode === 'create' ? '创建' : '打开'}</Tag>
                     </span>
@@ -188,20 +188,20 @@ const Login = ({ onLogin }) => {
               </Radio.Group>
               <Radio.Group value={source} onChange={(e) => setSource(e.target.value)} buttonStyle="solid">
                 <Radio.Button value="local">本地</Radio.Button>
-                <Radio.Button value="network">网络挂载</Radio.Button>
+                <Radio.Button value="syncthing">Syncthing</Radio.Button>
               </Radio.Group>
             </Space>
 
             <Form form={form} onFinish={handleSubmit} layout="vertical" requiredMark={false}>
               <Form.Item
                 name="dbPath"
-                label={source === 'network' ? '网络数据库路径' : '数据库路径'}
-                tooltip={source === 'network' ? '请确保共享目录已挂载并可访问' : '建议使用绝对路径，避免误开新库'}
+                label={source === 'syncthing' ? 'Syncthing 数据库路径' : '数据库路径'}
+                tooltip={source === 'syncthing' ? '请确保该路径位于 Syncthing 同步目录' : '建议使用绝对路径，避免误开新库'}
                 rules={[{ required: true, message: '请输入数据库路径' }]}
               >
                 <Input
-                  prefix={source === 'network' ? <LinkOutlined /> : <DatabaseOutlined />}
-                  placeholder={source === 'network' ? '\\\\NAS\\vault\\apikey-vault.db' : '例如 C:/secure/apikey-vault.db'}
+                  prefix={source === 'syncthing' ? <SyncOutlined /> : <DatabaseOutlined />}
+                  placeholder={source === 'syncthing' ? '例如 D:/vault-sync/apikey-vault.db' : '例如 C:/secure/apikey-vault.db'}
                 />
               </Form.Item>
 
