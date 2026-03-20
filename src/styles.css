@@ -186,6 +186,20 @@ body {
   gap: 14px;
 }
 
+.home-topbar {
+  max-width: 1320px;
+  margin: 0 auto 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.topbar-title {
+  margin: 0;
+}
+
 .home-layout {
   max-width: 1320px;
   margin: 0 auto;
@@ -243,6 +257,26 @@ body {
 .home-main {
   display: grid;
   gap: 12px;
+}
+
+.banner-card {
+  padding: 14px 16px;
+  background:
+    linear-gradient(120deg, rgba(39, 93, 70, 0.08), rgba(222, 238, 227, 0.7)),
+    var(--surface);
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.banner-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .search-hero {
@@ -394,5 +428,15 @@ body {
 
   .home-layout {
     grid-template-columns: 1fr;
+  }
+
+  .home-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .banner-content {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

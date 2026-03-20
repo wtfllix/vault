@@ -13,6 +13,8 @@ import {
   message
 } from 'antd';
 import {
+  AppstoreOutlined,
+  BellOutlined,
   CopyOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -56,6 +58,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [secretType, setSecretType] = useState('apikey');
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [form] = Form.useForm();
+  const totalCount = TYPE_ORDER.reduce((sum, key) => sum + (counts[key] || 0), 0);
 
   const refreshCounts = async () => {
     try {
@@ -73,8 +76,15 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const loadSecrets = async (searchText = query, type = activeType) => {
     setLoading(true);
     try {
+      const normalizedQuery = searchText.trim();
+      if (type === 'all' && !normalizedQuery) {
+        setSecrets([]);
+        await refreshCounts();
+        return;
+      }
+
       const data = await api.getSecrets({
-        query: searchText.trim(),
+        query: normalizedQuery,
         type: type === 'all' ? '' : type
       });
       setSecrets(data);
@@ -250,6 +260,23 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
   return (
     <div className="app-shell page-enter">
+      <header className="home-topbar glass-panel">
+        <div>
+          <Title level={3} className="topbar-title">API Key Vault</Title>
+          <Text type="secondary">局域网 Web MVP · 安全密钥管理</Text>
+        </div>
+        <Space wrap>
+          <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
+          <Tag icon={<BellOutlined />}>当前 {activeType === 'all' ? '主页搜索' : SECRET_TYPES[activeType]?.label}</Tag>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+            添加密钥
+          </Button>
+          <Button icon={<LogoutOutlined />} onClick={onLogout}>
+            退出
+          </Button>
+        </Space>
+      </header>
+
       <div className="home-layout">
         <aside className="home-sidebar glass-panel">
           <div className="sidebar-title">导航</div>
@@ -273,13 +300,24 @@ const Home = ({ onLogout, onAuthExpired }) => {
             <Button icon={<ReloadOutlined />} onClick={() => loadSecrets(query, activeType)} loading={loading} block>
               刷新
             </Button>
-            <Button icon={<LogoutOutlined />} onClick={onLogout} block>
-              退出
-            </Button>
           </div>
         </aside>
 
         <main className="home-main">
+          <Card className="glass-panel banner-card" bordered={false}>
+            <div className="banner-content">
+              <div>
+                <Title level={4} style={{ marginTop: 0, marginBottom: 6 }}>快速检索你的敏感信息</Title>
+                <Text type="secondary">在主页输入关键词动态查找，或从左侧切换到具体类型管理。</Text>
+              </div>
+              <div className="banner-tags">
+                <Tag color="green">AES-256-GCM 存储加密</Tag>
+                <Tag color="blue">主密码登录</Tag>
+                <Tag>{loading ? '数据同步中...' : '数据已就绪'}</Tag>
+              </div>
+            </div>
+          </Card>
+
           <Card className="glass-panel search-hero" bordered={false}>
             <Title level={3} style={{ marginTop: 0 }}>搜索你的密钥</Title>
             <Text type="secondary">支持按名称和类型快速查找</Text>
@@ -293,7 +331,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
               onChange={(e) => handleSearch(e.target.value)}
             />
             <div className="hero-actions">
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+              <Button icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                 添加密钥
               </Button>
             </div>
