@@ -35,6 +35,21 @@ body {
   padding: 24px;
 }
 
+.loading-shell {
+  display: grid;
+  place-items: center;
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(460px, calc(100vw - 24px));
+  padding: 20px;
+}
+
 .glass-panel {
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.75);

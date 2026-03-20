@@ -1,89 +1,65 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { message } from 'antd';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import React, { useEffect, useState } from 'react';
+import { Spin, message } from 'antd';
 import Login from './Login';
 import Home from './Home';
+import { api, clearToken, getToken } from './api';
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [session, setSession] = useState(null);
-  const closingRef = useRef(false);
-  const syncingRef = useRef(false);
+  const [initialized, setInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogin = (nextSession) => {
-    setSession(nextSession);
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const state = await api.getAuthState();
+        setInitialized(state.initialized);
+        setIsLoggedIn(Boolean(getToken()));
+      } catch (error) {
+        message.error(`初始化失败: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    bootstrap();
+  }, []);
+
+  const handleAuthSuccess = () => {
+    setInitialized(true);
     setIsLoggedIn(true);
   };
 
-  const syncAndRelease = useCallback(async (silent = false) => {
-    if (!session) {
-      return true;
-    }
-    try {
-      await invoke('sync_to_syncthing', {
-        sourcePath: session.dbPath,
-        targetPath: session.syncPath
-      });
-      if (!silent) {
-        message.success('已同步到 Syncthing 目标路径');
-      }
-      return true;
-    } catch (error) {
-      message.error(`同步失败: ${error}`);
-      return false;
-    }
-  }, [session]);
-
   const handleLogout = async () => {
-    if (syncingRef.current) {
-      return;
+    try {
+      await api.logout();
+    } catch {
+      // 无论接口是否可用都强制退出本地会话
+    } finally {
+      clearToken();
+      setIsLoggedIn(false);
+      message.success('已退出');
     }
-    syncingRef.current = true;
-    await syncAndRelease();
-    syncingRef.current = false;
-    setIsLoggedIn(false);
-    setSession(null);
   };
 
-  useEffect(() => {
-    if (!isLoggedIn || !session || typeof window === 'undefined' || !window.__TAURI_INTERNALS__) {
-      return undefined;
-    }
+  const handleAuthExpired = () => {
+    clearToken();
+    setIsLoggedIn(false);
+    message.warning('登录状态已失效，请重新登录');
+  };
 
-    closingRef.current = false;
-    let unlisten = null;
-
-    const setupCloseGuard = async () => {
-      const appWindow = getCurrentWindow();
-      unlisten = await appWindow.onCloseRequested(async (event) => {
-        if (closingRef.current) {
-          return;
-        }
-        event.preventDefault();
-        if (syncingRef.current) {
-          return;
-        }
-        syncingRef.current = true;
-        await syncAndRelease(true);
-        syncingRef.current = false;
-        closingRef.current = true;
-        await appWindow.close();
-      });
-    };
-
-    setupCloseGuard().catch(() => {});
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [isLoggedIn, session, syncAndRelease]);
+  if (loading) {
+    return (
+      <div className="app-shell loading-shell">
+        <Spin />
+      </div>
+    );
+  }
 
   return isLoggedIn ? (
-    <Home dbPath={session?.dbPath || ''} onLogout={handleLogout} />
+    <Home onLogout={handleLogout} onAuthExpired={handleAuthExpired} />
   ) : (
-    <Login onLogin={handleLogin} />
+    <Login initialized={initialized} onAuthSuccess={handleAuthSuccess} />
   );
 };
 

@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: akv_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: akv
+      POSTGRES_USER: akv
+      POSTGRES_PASSWORD: akv_change_me
+    volumes:
+      - akv_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U akv -d akv']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: akv_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8787
+      DATABASE_URL: postgres://akv:akv_change_me@db:5432/akv
+      JWT_SECRET: please_change_jwt_secret
+      APP_MASTER_KEY: please_change_master_key_32bytes_or_base64
+      JWT_EXPIRES_IN: 7d
+      ARGON2_MEMORY_COST: 19456
+      ARGON2_TIME_COST: 2
+      ARGON2_PARALLELISM: 1
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: akv_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '8080:80'
+
+volumes:
+  akv_pgdata:

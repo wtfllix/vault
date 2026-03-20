@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api-dev": "node --watch server/src/index.js",
+    "web-dev": "vite",
+    "start-api": "node server/src/index.js",
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -17,7 +20,12 @@
     "react-dom": "^18.2.0",
     "antd": "^5.15.0",
     "@ant-design/icons": "^5.3.0",
-    "@tauri-apps/api": "^2.0.0"
+    "@fastify/cors": "^11.1.0",
+    "@fastify/jwt": "^10.0.0",
+    "@tauri-apps/api": "^2.0.0",
+    "argon2": "^0.44.0",
+    "fastify": "^5.6.1",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",

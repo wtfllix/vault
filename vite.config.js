@@ -7,7 +7,14 @@ export default defineConfig({
     outDir: 'dist'
   },
   server: {
+    host: '0.0.0.0',
     port: 1420,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY || 'http://localhost:8787',
+        changeOrigin: true
+      }
+    }
   }
 });
