@@ -262,6 +262,11 @@ body {
   gap: 12px;
 }
 
+.search-result-list {
+  display: grid;
+  gap: 10px;
+}
+
 .result-card {
   min-height: 220px;
 }

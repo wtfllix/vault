@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
-  Empty,
   Form,
   Input,
   Modal,
@@ -111,7 +110,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
     return map;
   }, [secrets]);
 
-  const visibleSections = activeType === 'all' ? TYPE_ORDER : [activeType];
+  const visibleSections = activeType === 'all' ? [] : [activeType];
 
   const handleSearch = async (value) => {
     setQuery(value);
@@ -190,6 +189,13 @@ const Home = ({ onLogout, onAuthExpired }) => {
       message.error('复制失败');
     }
   };
+
+  const allModeResults = useMemo(() => {
+    if (activeType !== 'all') {
+      return [];
+    }
+    return secrets;
+  }, [activeType, secrets]);
 
   const renderFormFields = () => {
     const fields = SECRET_TYPES[secretType].fields;
@@ -294,6 +300,28 @@ const Home = ({ onLogout, onAuthExpired }) => {
           </Card>
 
           <div className="result-sections">
+            {activeType === 'all' ? (
+              <div className="search-result-list">
+                {allModeResults.map((item) => (
+                  <div key={item.id} className="secret-item">
+                    <div className="secret-item-head">
+                      <Space size={8}>
+                        {SECRET_TYPES[item.secret_type]?.icon}
+                        <Text strong>{item.name}</Text>
+                        <Tag>{SECRET_TYPES[item.secret_type]?.label || item.secret_type}</Tag>
+                      </Space>
+                      <Space size={4}>
+                        <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
+                        <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
+                          <Button type="text" icon={<DeleteOutlined />} danger />
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                    <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {visibleSections.map((type) => {
               const meta = SECRET_TYPES[type];
               const list = grouped[type] || [];
@@ -310,26 +338,22 @@ const Home = ({ onLogout, onAuthExpired }) => {
                     </Space>
                   )}
                 >
-                  {list.length === 0 ? (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无数据" />
-                  ) : (
-                    <div className="secret-list">
-                      {list.map((item) => (
-                        <div key={item.id} className="secret-item">
-                          <div className="secret-item-head">
-                            <Text strong>{item.name}</Text>
-                            <Space size={4}>
-                              <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
-                              <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
-                                <Button type="text" icon={<DeleteOutlined />} danger />
-                              </Popconfirm>
-                            </Space>
-                          </div>
-                          <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
+                  <div className="secret-list">
+                    {list.map((item) => (
+                      <div key={item.id} className="secret-item">
+                        <div className="secret-item-head">
+                          <Text strong>{item.name}</Text>
+                          <Space size={4}>
+                            <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
+                            <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
+                              <Button type="text" icon={<DeleteOutlined />} danger />
+                            </Popconfirm>
+                          </Space>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
+                      </div>
+                    ))}
+                  </div>
                 </Card>
               );
             })}
