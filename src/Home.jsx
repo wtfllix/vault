@@ -310,7 +310,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
           <Card className="glass-panel banner-card" bordered={false}>
             <div className="banner-content">
               <div className="banner-copy">
-                <Title level={4} style={{ marginTop: 0, marginBottom: 6 }}>快速检索你的敏感信息</Title>
                 <Text type="secondary">输入关键词立即筛选。切换左侧类型可进入结构化管理视图。</Text>
               </div>
               <div className="banner-tags">
