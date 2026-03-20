@@ -18,6 +18,7 @@ import {
   DeleteOutlined,
   EyeOutlined,
   FileTextOutlined,
+  HomeOutlined,
   KeyOutlined,
   LogoutOutlined,
   PlusOutlined,
@@ -32,30 +33,53 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 const SECRET_TYPES = {
-  apikey: { label: 'API Key', icon: <KeyOutlined />, fields: ['key'] },
+  apikey: { label: 'API Key', icon: <KeyOutlined />, fields: ['apiUrl', 'key'] },
   ssh: { label: 'SSH 公钥', icon: <KeyOutlined />, fields: ['privateKey', 'publicKey', 'passphrase'] },
   password: { label: '密码', icon: <UserOutlined />, fields: ['url', 'username', 'password'] },
   database: { label: '数据库', icon: <DatabaseOutlined />, fields: ['type', 'host', 'port', 'username', 'password', 'database'] },
   custom: { label: '其他', icon: <FileTextOutlined />, fields: ['content'] }
 };
 
-const COLUMN_ORDER = ['apikey', 'ssh', 'password', 'database', 'custom'];
+const TYPE_ORDER = ['apikey', 'ssh', 'password', 'database', 'custom'];
+const SIDEBAR_ITEMS = [
+  { key: 'all', label: '主页', icon: <HomeOutlined /> },
+  ...TYPE_ORDER.map((key) => ({ key, label: SECRET_TYPES[key].label, icon: SECRET_TYPES[key].icon }))
+];
 
 const Home = ({ onLogout, onAuthExpired }) => {
   const [secrets, setSecrets] = useState([]);
+  const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeType, setActiveType] = useState('all');
   const [modalVisible, setModalVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [secretType, setSecretType] = useState('apikey');
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [form] = Form.useForm();
 
-  const loadSecrets = async (searchText = query) => {
+  const refreshCounts = async () => {
+    try {
+      const data = await api.getSecrets({});
+      const next = {};
+      TYPE_ORDER.forEach((t) => {
+        next[t] = data.filter((x) => x.secret_type === t).length;
+      });
+      setCounts(next);
+    } catch {
+      // 忽略计数刷新失败，不阻断主流程
+    }
+  };
+
+  const loadSecrets = async (searchText = query, type = activeType) => {
     setLoading(true);
     try {
-      const data = await api.getSecrets({ query: searchText.trim() });
+      const data = await api.getSecrets({
+        query: searchText.trim(),
+        type: type === 'all' ? '' : type
+      });
       setSecrets(data);
+      await refreshCounts();
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -68,34 +92,43 @@ const Home = ({ onLogout, onAuthExpired }) => {
   };
 
   useEffect(() => {
-    loadSecrets('');
+    loadSecrets('', 'all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const groupedSecrets = useMemo(() => {
-    const groups = {};
-    COLUMN_ORDER.forEach((type) => {
-      groups[type] = [];
+  const grouped = useMemo(() => {
+    const map = {};
+    TYPE_ORDER.forEach((k) => {
+      map[k] = [];
     });
-
     secrets.forEach((item) => {
-      const key = COLUMN_ORDER.includes(item.secret_type) ? item.secret_type : 'custom';
-      groups[key].push(item);
+      if (map[item.secret_type]) {
+        map[item.secret_type].push(item);
+      } else {
+        map.custom.push(item);
+      }
     });
-    return groups;
+    return map;
   }, [secrets]);
+
+  const visibleSections = activeType === 'all' ? TYPE_ORDER : [activeType];
 
   const handleSearch = async (value) => {
     setQuery(value);
-    await loadSecrets(value);
+    await loadSecrets(value, activeType);
+  };
+
+  const handleSidebarChange = async (key) => {
+    setActiveType(key);
+    await loadSecrets(query, key);
   };
 
   const handleAdd = async (values) => {
     try {
-      const fields = SECRET_TYPES[secretType].fields;
       const data = {};
+      const fields = SECRET_TYPES[secretType].fields;
       fields.forEach((field) => {
-        if (values[field]) {
+        if (values[field] !== undefined && values[field] !== '') {
           data[field] = values[field];
         }
       });
@@ -111,7 +144,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       setModalVisible(false);
       setSecretType('apikey');
       form.resetFields();
-      await loadSecrets();
+      await loadSecrets(query, activeType);
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -125,7 +158,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
     try {
       await api.deleteSecret(id);
       message.success('删除成功');
-      await loadSecrets();
+      await loadSecrets(query, activeType);
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -161,6 +194,13 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const renderFormFields = () => {
     const fields = SECRET_TYPES[secretType].fields;
     return fields.map((field) => {
+      if (field === 'apiUrl') {
+        return (
+          <Form.Item key={field} name={field} label="API 地址" rules={[{ required: true, message: '请输入 API 地址' }]}>
+            <Input placeholder="https://api.example.com/v1" />
+          </Form.Item>
+        );
+      }
       if (field === 'key') {
         return (
           <Form.Item key={field} name={field} label="API Key" rules={[{ required: true, message: '请输入 API Key' }]}>
@@ -204,77 +244,97 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
   return (
     <div className="app-shell page-enter">
-      <div className="home-wrap">
-        <Card className="glass-panel home-header" bordered={false}>
-          <div>
-            <Title className="home-title">API Key Vault</Title>
-            <div className="home-meta">Web MVP · PostgreSQL</div>
+      <div className="home-layout">
+        <aside className="home-sidebar glass-panel">
+          <div className="sidebar-title">导航</div>
+          <div className="sidebar-list">
+            {SIDEBAR_ITEMS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`sidebar-item ${activeType === item.key ? 'is-active' : ''}`}
+                onClick={() => handleSidebarChange(item.key)}
+              >
+                <span className="sidebar-item-left">
+                  {item.icon}
+                  <span>{item.label}</span>
+                </span>
+                {item.key !== 'all' ? <Tag>{counts[item.key] || 0}</Tag> : null}
+              </button>
+            ))}
           </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => loadSecrets()} loading={loading}>刷新</Button>
-            <Button icon={<LogoutOutlined />} onClick={onLogout}>退出</Button>
-          </Space>
-        </Card>
+          <div className="sidebar-actions">
+            <Button icon={<ReloadOutlined />} onClick={() => loadSecrets(query, activeType)} loading={loading} block>
+              刷新
+            </Button>
+            <Button icon={<LogoutOutlined />} onClick={onLogout} block>
+              退出
+            </Button>
+          </div>
+        </aside>
 
-        <Card className="glass-panel toolbar-card" bordered={false}>
-          <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+        <main className="home-main">
+          <Card className="glass-panel search-hero" bordered={false}>
+            <Title level={3} style={{ marginTop: 0 }}>搜索你的密钥</Title>
+            <Text type="secondary">支持按名称和类型快速查找</Text>
             <Input
               allowClear
+              size="large"
               value={query}
               prefix={<SearchOutlined />}
-              placeholder="搜索名称或类型"
-              style={{ width: 320 }}
+              placeholder="输入名称 / 类型，例如：apikey、ssh、数据库"
+              className="hero-search"
               onChange={(e) => handleSearch(e.target.value)}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-              添加密钥
-            </Button>
-          </Space>
-        </Card>
+            <div className="hero-actions">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                添加密钥
+              </Button>
+            </div>
+          </Card>
 
-        <div className="type-columns">
-          {COLUMN_ORDER.map((type) => {
-            const typeMeta = SECRET_TYPES[type];
-            const list = groupedSecrets[type] || [];
-            return (
-              <Card
-                key={type}
-                className="glass-panel type-column"
-                bordered={false}
-                title={(
-                  <Space>
-                    {typeMeta.icon}
-                    <span>{typeMeta.label}</span>
-                    <Tag>{list.length}</Tag>
-                  </Space>
-                )}
-              >
-                {list.length === 0 ? (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无数据" />
-                ) : (
-                  <div className="secret-list">
-                    {list.map((item) => (
-                      <div key={item.id} className="secret-item">
-                        <div className="secret-item-head">
-                          <Text strong>{item.name}</Text>
-                          <Space size={4}>
-                            <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
-                            <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
-                              <Button type="text" icon={<DeleteOutlined />} danger />
-                            </Popconfirm>
-                          </Space>
+          <div className="result-sections">
+            {visibleSections.map((type) => {
+              const meta = SECRET_TYPES[type];
+              const list = grouped[type] || [];
+              return (
+                <Card
+                  key={type}
+                  className="glass-panel result-card"
+                  bordered={false}
+                  title={(
+                    <Space>
+                      {meta.icon}
+                      <span>{meta.label}</span>
+                      <Tag>{list.length}</Tag>
+                    </Space>
+                  )}
+                >
+                  {list.length === 0 ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无数据" />
+                  ) : (
+                    <div className="secret-list">
+                      {list.map((item) => (
+                        <div key={item.id} className="secret-item">
+                          <div className="secret-item-head">
+                            <Text strong>{item.name}</Text>
+                            <Space size={4}>
+                              <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
+                              <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
+                                <Button type="text" icon={<DeleteOutlined />} danger />
+                              </Popconfirm>
+                            </Space>
+                          </div>
+                          <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
                         </div>
-                        <Text className="secret-preview" type="secondary">
-                          {item.preview || '***'}
-                        </Text>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </main>
       </div>
 
       <Modal
