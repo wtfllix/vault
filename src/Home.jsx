@@ -13,7 +13,6 @@ import {
   message
 } from 'antd';
 import {
-  ArrowRightOutlined,
   AppstoreOutlined,
   BellOutlined,
   CopyOutlined,
@@ -60,7 +59,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [form] = Form.useForm();
   const totalCount = TYPE_ORDER.reduce((sum, key) => sum + (counts[key] || 0), 0);
-  const searchActive = query.trim().length > 0;
 
   const refreshCounts = async () => {
     try {
@@ -307,33 +305,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
         </aside>
 
         <main className="home-main">
-          <Card className="glass-panel banner-card" bordered={false}>
-            <div className="banner-content">
-              <div className="banner-copy">
-                <Text type="secondary">输入关键词立即筛选。切换左侧类型可进入结构化管理视图。</Text>
-              </div>
-              <div className="banner-tags">
-                <Tag color="green">AES-256-GCM 存储加密</Tag>
-                <Tag color="blue">主密码登录</Tag>
-                <Tag>{loading ? '数据同步中...' : '数据已就绪'}</Tag>
-              </div>
-            </div>
-            <div className="banner-stats">
-              <div className="stat-chip">
-                <span className="stat-label">总记录</span>
-                <span className="stat-value">{totalCount}</span>
-              </div>
-              <div className="stat-chip">
-                <span className="stat-label">当前视图</span>
-                <span className="stat-value">{activeType === 'all' ? '主页' : SECRET_TYPES[activeType]?.label}</span>
-              </div>
-              <div className="stat-chip">
-                <span className="stat-label">搜索状态</span>
-                <span className="stat-value">{searchActive ? '进行中' : '待输入'}</span>
-              </div>
-            </div>
-          </Card>
-
           <Card className="glass-panel search-hero" bordered={false}>
             <Title level={3} style={{ marginTop: 0 }}>搜索你的密钥</Title>
             <Text type="secondary">支持按名称和类型快速查找</Text>
@@ -349,13 +320,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
             <div className="hero-actions">
               <Button icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                 添加密钥
-              </Button>
-              <Button
-                type="text"
-                icon={<ArrowRightOutlined />}
-                onClick={() => handleSidebarChange('apikey')}
-              >
-                进入 API Key 管理
               </Button>
             </div>
           </Card>

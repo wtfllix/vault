@@ -46,6 +46,9 @@ const Login = ({ initialized, onAuthSuccess }) => {
           requiredMark={false}
           onFinish={handleSubmit}
         >
+          <Form.Item name="username" style={{ display: 'none' }} initialValue="owner">
+            <Input autoComplete="username" />
+          </Form.Item>
           <Form.Item
             name="password"
             label="主密码"
