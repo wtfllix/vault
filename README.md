@@ -40,6 +40,27 @@ docker compose up -d --build
 
 访问：`http://<服务器IP>:8080`
 
+> 当前 `docker-compose.yml` 已按 2GB VPS 做了低内存优化：
+> - 容器内存上限：`db=512m`、`api=384m`、`web=128m`
+> - Docker 日志滚动限制，避免日志挤爆磁盘与内存
+> - PostgreSQL 参数下调（`shared_buffers/work_mem/max_connections`）
+
+建议额外开启 2G swap（防止峰值 OOM）：
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+常用监控命令：
+```bash
+free -h
+docker stats
+dmesg -T | grep -Ei 'killed process|out of memory|oom'
+```
+
 ## 3. MVP 功能
 
 - 首次启动设置主密码

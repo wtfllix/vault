@@ -3,10 +3,30 @@ services:
     image: postgres:16-alpine
     container_name: akv_db
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - max_connections=30
     environment:
       POSTGRES_DB: akv
       POSTGRES_USER: akv
       POSTGRES_PASSWORD: akv_change_me
+    mem_limit: 512m
+    mem_reservation: 256m
+    pids_limit: 200
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     volumes:
       - akv_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -33,6 +53,15 @@ services:
       ARGON2_MEMORY_COST: 19456
       ARGON2_TIME_COST: 2
       ARGON2_PARALLELISM: 1
+      NODE_OPTIONS: --max-old-space-size=192
+    mem_limit: 384m
+    mem_reservation: 192m
+    pids_limit: 200
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   web:
     build:
@@ -40,6 +69,14 @@ services:
       dockerfile: Dockerfile.web
     container_name: akv_web
     restart: unless-stopped
+    mem_limit: 128m
+    mem_reservation: 64m
+    pids_limit: 100
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
     depends_on:
       - api
     ports:
