@@ -1,4 +1,28 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
+const resolveApiBase = () => {
+  const envBase = (import.meta.env.VITE_API_BASE || '').trim();
+  if (!envBase) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(envBase);
+    const host = parsed.hostname.toLowerCase();
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    const pageHost = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+    const pageIsLocal = pageHost === 'localhost' || pageHost === '127.0.0.1';
+
+    if (isLocalHost && !pageIsLocal) {
+      return '';
+    }
+  } catch {
+    // 非法 URL 时直接回退同域
+    return '';
+  }
+
+  return envBase;
+};
+
+const API_BASE = resolveApiBase();
 const TOKEN_KEY = 'akv_web_token_v1';
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY) || '';
