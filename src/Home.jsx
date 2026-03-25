@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Button,
   Card,
@@ -14,7 +14,6 @@ import {
 } from 'antd';
 import {
   AppstoreOutlined,
-  BellOutlined,
   CopyOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -60,7 +59,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [form] = Form.useForm();
   const totalCount = TYPE_ORDER.reduce((sum, key) => sum + (counts[key] || 0), 0);
 
-  const refreshCounts = async () => {
+  const loadCounts = async () => {
     try {
       const data = await api.getSecrets({});
       const next = {};
@@ -79,7 +78,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
       const normalizedQuery = searchText.trim();
       if (type === 'all' && !normalizedQuery) {
         setSecrets([]);
-        await refreshCounts();
         return;
       }
 
@@ -88,7 +86,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
         type: type === 'all' ? '' : type
       });
       setSecrets(data);
-      await refreshCounts();
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -101,26 +98,10 @@ const Home = ({ onLogout, onAuthExpired }) => {
   };
 
   useEffect(() => {
+    loadCounts();
     loadSecrets('', 'all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const grouped = useMemo(() => {
-    const map = {};
-    TYPE_ORDER.forEach((k) => {
-      map[k] = [];
-    });
-    secrets.forEach((item) => {
-      if (map[item.secret_type]) {
-        map[item.secret_type].push(item);
-      } else {
-        map.custom.push(item);
-      }
-    });
-    return map;
-  }, [secrets]);
-
-  const visibleSections = activeType === 'all' ? [] : [activeType];
 
   const handleSearch = async (value) => {
     setQuery(value);
@@ -153,7 +134,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       setModalVisible(false);
       setSecretType('apikey');
       form.resetFields();
-      await loadSecrets(query, activeType);
+      await Promise.all([loadSecrets(query, activeType), loadCounts()]);
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -167,7 +148,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
     try {
       await api.deleteSecret(id);
       message.success('删除成功');
-      await loadSecrets(query, activeType);
+      await Promise.all([loadSecrets(query, activeType), loadCounts()]);
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -200,12 +181,30 @@ const Home = ({ onLogout, onAuthExpired }) => {
     }
   };
 
-  const allModeResults = useMemo(() => {
-    if (activeType !== 'all') {
-      return [];
-    }
-    return secrets;
-  }, [activeType, secrets]);
+  const allModeResults = activeType === 'all' ? secrets : [];
+
+  const renderSecretItems = (list, showTypeTag = false) => (
+    <div className="secret-list">
+      {list.map((item) => (
+        <div key={item.id} className="secret-item">
+          <div className="secret-item-head">
+            <Space size={8}>
+              {showTypeTag ? SECRET_TYPES[item.secret_type]?.icon : null}
+              <Text strong>{item.name}</Text>
+              {showTypeTag ? <Tag>{SECRET_TYPES[item.secret_type]?.label || item.secret_type}</Tag> : null}
+            </Space>
+            <Space size={4}>
+              <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
+              <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
+                <Button type="text" icon={<DeleteOutlined />} danger />
+              </Popconfirm>
+            </Space>
+          </div>
+          <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
+        </div>
+      ))}
+    </div>
+  );
 
   const renderFormFields = () => {
     const fields = SECRET_TYPES[secretType].fields;
@@ -268,7 +267,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
         </div>
         <Space wrap>
           <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
-          <Tag icon={<BellOutlined />}>当前 {activeType === 'all' ? '主页搜索' : SECRET_TYPES[activeType]?.label}</Tag>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
             添加密钥
           </Button>
@@ -298,7 +296,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
             ))}
           </div>
           <div className="sidebar-actions">
-            <Button icon={<ReloadOutlined />} onClick={() => loadSecrets(query, activeType)} loading={loading} block>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => Promise.all([loadSecrets(query, activeType), loadCounts()])}
+              loading={loading}
+              block
+            >
               刷新
             </Button>
           </div>
@@ -317,71 +320,29 @@ const Home = ({ onLogout, onAuthExpired }) => {
               className="hero-search"
               onChange={(e) => handleSearch(e.target.value)}
             />
-            <div className="hero-actions">
-              <Button icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-                添加密钥
-              </Button>
-            </div>
           </Card>
 
           <div className="result-sections">
             {activeType === 'all' ? (
               <div className="search-result-list">
-                {allModeResults.map((item) => (
-                  <div key={item.id} className="secret-item">
-                    <div className="secret-item-head">
-                      <Space size={8}>
-                        {SECRET_TYPES[item.secret_type]?.icon}
-                        <Text strong>{item.name}</Text>
-                        <Tag>{SECRET_TYPES[item.secret_type]?.label || item.secret_type}</Tag>
-                      </Space>
-                      <Space size={4}>
-                        <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
-                        <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
-                          <Button type="text" icon={<DeleteOutlined />} danger />
-                        </Popconfirm>
-                      </Space>
-                    </div>
-                    <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
-                  </div>
-                ))}
+                {renderSecretItems(allModeResults, true)}
               </div>
             ) : null}
-            {visibleSections.map((type) => {
-              const meta = SECRET_TYPES[type];
-              const list = grouped[type] || [];
-              return (
-                <Card
-                  key={type}
-                  className="glass-panel result-card"
-                  bordered={false}
-                  title={(
-                    <Space>
-                      {meta.icon}
-                      <span>{meta.label}</span>
-                      <Tag>{list.length}</Tag>
-                    </Space>
-                  )}
-                >
-                  <div className="secret-list">
-                    {list.map((item) => (
-                      <div key={item.id} className="secret-item">
-                        <div className="secret-item-head">
-                          <Text strong>{item.name}</Text>
-                          <Space size={4}>
-                            <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
-                            <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
-                              <Button type="text" icon={<DeleteOutlined />} danger />
-                            </Popconfirm>
-                          </Space>
-                        </div>
-                        <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              );
-            })}
+            {activeType !== 'all' ? (
+              <Card
+                className="glass-panel result-card"
+                bordered={false}
+                title={(
+                  <Space>
+                    {SECRET_TYPES[activeType]?.icon}
+                    <span>{SECRET_TYPES[activeType]?.label || activeType}</span>
+                    <Tag>{secrets.length}</Tag>
+                  </Space>
+                )}
+              >
+                {renderSecretItems(secrets)}
+              </Card>
+            ) : null}
           </div>
         </main>
       </div>

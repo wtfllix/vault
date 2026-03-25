@@ -180,13 +180,6 @@ body {
   padding-top: 14px;
 }
 
-.home-wrap {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-}
-
 .home-topbar {
   max-width: 1320px;
   margin: 0 auto 14px;
@@ -281,13 +274,6 @@ body {
   margin-top: 12px;
 }
 
-.hero-actions {
-  margin-top: 12px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .result-sections {
   display: grid;
   gap: 12px;
@@ -300,40 +286,6 @@ body {
 
 .result-card {
   min-height: 220px;
-}
-
-.home-header {
-  padding: 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.home-title {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.2;
-}
-
-.home-meta {
-  color: var(--text-muted);
-  margin-top: 8px;
-  font-size: 13px;
-}
-
-.toolbar-card {
-  padding: 14px;
-}
-
-.type-columns {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.type-column {
-  min-height: 260px;
 }
 
 .secret-list {
@@ -431,14 +383,6 @@ body {
     margin-top: -30px;
     width: 60px;
     height: 60px;
-  }
-
-  .type-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .home-header {
-    flex-direction: column;
   }
 
   .home-layout {
