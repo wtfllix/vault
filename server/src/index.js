@@ -7,7 +7,7 @@ import { bootstrapPassword, getBootstrapState, verifyPassword } from './auth.js'
 import { decryptJson, encryptJson } from './crypto.js';
 
 const app = Fastify({ logger: true });
-const SECRET_TYPES = new Set(['apikey', 'ssh', 'password', 'database', 'custom']);
+const SECRET_TYPES = new Set(['apikey', 'ssh', 'password', 'database', 'custom', 'long_text', 'config_file']);
 
 await app.register(cors, {
   origin: true
@@ -95,8 +95,17 @@ app.get('/api/secrets', { preHandler: [app.authenticate] }, async (request) => {
     let preview = '***';
     try {
       const data = decryptJson(row.encrypted_data);
-      const firstValue = Object.values(data).find((v) => typeof v === 'string' && v.trim());
-      preview = firstValue ? String(firstValue).slice(0, 36) : '无内容';
+      if (row.secret_type === 'config_file') {
+        const fileName = typeof data.fileName === 'string' ? data.fileName : '未命名文件';
+        const size = Number.isFinite(Number(data.size)) ? Number(data.size) : 0;
+        preview = `${fileName} (${size} bytes)`;
+      } else if (row.secret_type === 'long_text') {
+        const content = typeof data.content === 'string' ? data.content : '';
+        preview = content.trim() ? content.slice(0, 36) : '无内容';
+      } else {
+        const firstValue = Object.values(data).find((v) => typeof v === 'string' && v.trim());
+        preview = firstValue ? String(firstValue).slice(0, 36) : '无内容';
+      }
     } catch {
       preview = '***';
     }
@@ -123,6 +132,19 @@ app.post('/api/secrets', { preHandler: [app.authenticate] }, async (request, rep
   }
   if (!data || typeof data !== 'object') {
     return reply.code(400).send({ message: '密钥内容格式不正确' });
+  }
+  if (secret_type === 'long_text') {
+    if (typeof data.content !== 'string' || !data.content.trim()) {
+      return reply.code(400).send({ message: '长文本内容不能为空' });
+    }
+  }
+  if (secret_type === 'config_file') {
+    if (typeof data.fileName !== 'string' || !data.fileName.trim()) {
+      return reply.code(400).send({ message: '文件名不能为空' });
+    }
+    if (typeof data.contentBase64 !== 'string' || !data.contentBase64.trim()) {
+      return reply.code(400).send({ message: '文件内容不能为空' });
+    }
   }
 
   const encrypted = encryptJson(data);

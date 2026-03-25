@@ -15,8 +15,10 @@ import {
 import {
   AppstoreOutlined,
   CopyOutlined,
+  DownloadOutlined,
   DeleteOutlined,
   EyeOutlined,
+  FileOutlined,
   FileTextOutlined,
   HomeOutlined,
   KeyOutlined,
@@ -37,10 +39,12 @@ const SECRET_TYPES = {
   ssh: { label: 'SSH 公钥', icon: <KeyOutlined />, fields: ['privateKey', 'publicKey', 'passphrase'] },
   password: { label: '密码', icon: <UserOutlined />, fields: ['url', 'username', 'password'] },
   database: { label: '数据库', icon: <DatabaseOutlined />, fields: ['type', 'host', 'port', 'username', 'password', 'database'] },
+  long_text: { label: '长文本', icon: <FileTextOutlined />, fields: ['content'] },
+  config_file: { label: '配置文件', icon: <FileOutlined />, fields: ['file'] },
   custom: { label: '其他', icon: <FileTextOutlined />, fields: ['content'] }
 };
 
-const TYPE_ORDER = ['apikey', 'ssh', 'password', 'database', 'custom'];
+const TYPE_ORDER = ['apikey', 'ssh', 'password', 'database', 'long_text', 'config_file', 'custom'];
 const SIDEBAR_ITEMS = [
   { key: 'all', label: '主页', icon: <HomeOutlined /> },
   ...TYPE_ORDER.map((key) => ({ key, label: SECRET_TYPES[key].label, icon: SECRET_TYPES[key].icon }))
@@ -56,6 +60,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [secretType, setSecretType] = useState('apikey');
   const [selectedSecret, setSelectedSecret] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [form] = Form.useForm();
   const totalCount = TYPE_ORDER.reduce((sum, key) => sum + (counts[key] || 0), 0);
 
@@ -116,12 +121,24 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const handleAdd = async (values) => {
     try {
       const data = {};
-      const fields = SECRET_TYPES[secretType].fields;
-      fields.forEach((field) => {
-        if (values[field] !== undefined && values[field] !== '') {
-          data[field] = values[field];
+      if (secretType === 'config_file') {
+        if (!selectedFile) {
+          message.error('请选择配置文件');
+          return;
         }
-      });
+        const contentBase64 = await readFileAsBase64(selectedFile);
+        data.fileName = selectedFile.name;
+        data.mimeType = selectedFile.type || 'application/octet-stream';
+        data.size = selectedFile.size;
+        data.contentBase64 = contentBase64;
+      } else {
+        const fields = SECRET_TYPES[secretType].fields;
+        fields.forEach((field) => {
+          if (values[field] !== undefined && values[field] !== '') {
+            data[field] = values[field];
+          }
+        });
+      }
 
       await api.addSecret({
         secret_type: secretType,
@@ -133,6 +150,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       message.success('添加成功');
       setModalVisible(false);
       setSecretType('apikey');
+      setSelectedFile(null);
       form.resetFields();
       await Promise.all([loadSecrets(query, activeType), loadCounts()]);
     } catch (error) {
@@ -178,6 +196,45 @@ const Home = ({ onLogout, onAuthExpired }) => {
       message.success('已复制');
     } catch {
       message.error('复制失败');
+    }
+  };
+
+  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const marker = 'base64,';
+      const index = result.indexOf(marker);
+      if (index === -1) {
+        reject(new Error('文件读取失败'));
+        return;
+      }
+      resolve(result.slice(index + marker.length));
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+
+  const downloadFileFromSecret = (detail) => {
+    const payload = detail?.data || {};
+    if (!payload.contentBase64 || !payload.fileName) {
+      message.error('文件数据不完整');
+      return;
+    }
+    try {
+      const binary = atob(payload.contentBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: payload.mimeType || 'application/octet-stream' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = payload.fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      message.error('文件下载失败');
     }
   };
 
@@ -236,9 +293,24 @@ const Home = ({ onLogout, onAuthExpired }) => {
         );
       }
       if (field === 'content') {
+        const contentLabel = secretType === 'long_text' ? '长文本内容' : '内容';
         return (
-          <Form.Item key={field} name={field} label="内容" rules={[{ required: true, message: '请输入内容' }]}>
-            <Input.TextArea rows={4} />
+          <Form.Item key={field} name={field} label={contentLabel} rules={[{ required: true, message: '请输入内容' }]}>
+            <Input.TextArea rows={secretType === 'long_text' ? 8 : 4} />
+          </Form.Item>
+        );
+      }
+      if (field === 'file') {
+        return (
+          <Form.Item key={field} label="配置文件" required>
+            <input
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSelectedFile(file);
+              }}
+            />
+            {selectedFile ? <Text type="secondary">已选择：{selectedFile.name}</Text> : null}
           </Form.Item>
         );
       }
@@ -355,6 +427,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
         onCancel={() => {
           setModalVisible(false);
           setSecretType('apikey');
+          setSelectedFile(null);
           form.resetFields();
         }}
         onOk={() => form.submit()}
@@ -364,7 +437,13 @@ const Home = ({ onLogout, onAuthExpired }) => {
             <Input />
           </Form.Item>
           <Form.Item label="类型">
-            <Select value={secretType} onChange={setSecretType}>
+            <Select
+              value={secretType}
+              onChange={(value) => {
+                setSecretType(value);
+                setSelectedFile(null);
+              }}
+            >
               {Object.entries(SECRET_TYPES).map(([key, meta]) => (
                 <Option key={key} value={key}>{meta.label}</Option>
               ))}
@@ -388,7 +467,16 @@ const Home = ({ onLogout, onAuthExpired }) => {
           <Space direction="vertical" size={10} style={{ width: '100%' }}>
             <Text><Text strong>名称：</Text>{selectedSecret.name}</Text>
             <Text><Text strong>类型：</Text>{SECRET_TYPES[selectedSecret.secret_type]?.label || selectedSecret.secret_type}</Text>
+            {selectedSecret.secret_type === 'config_file' ? (
+              <Space>
+                <Text><Text strong>文件：</Text>{selectedSecret.data?.fileName || '-'}</Text>
+                <Button icon={<DownloadOutlined />} onClick={() => downloadFileFromSecret(selectedSecret)}>
+                  下载原文件
+                </Button>
+              </Space>
+            ) : null}
             {Object.entries(selectedSecret.data || {}).map(([key, value]) => (
+              key === 'contentBase64' ? null : (
               <div key={key} className="detail-row">
                 <span className="detail-key">{key}</span>
                 <Space style={{ width: '100%' }} align="start">
@@ -396,6 +484,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(value)} />
                 </Space>
               </div>
+              )
             ))}
             {selectedSecret.note ? <Text><Text strong>备注：</Text>{selectedSecret.note}</Text> : null}
           </Space>
