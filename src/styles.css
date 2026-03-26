@@ -35,6 +35,7 @@ body {
 .app-shell {
   min-height: 100vh;
   padding: 18px;
+  overflow: auto;
 }
 
 .loading-shell {
@@ -182,7 +183,8 @@ body {
 }
 
 .workspace-frame {
-  max-width: 1440px;
+  width: min(1440px, 100%);
+  min-width: 1120px;
   margin: 0 auto;
   border-radius: 26px;
   overflow: hidden;
@@ -232,7 +234,7 @@ body {
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 220px minmax(560px, 1fr) minmax(380px, 0.95fr);
+  grid-template-columns: 220px 1.05fr 0.95fr;
   min-height: 0;
 }
 
@@ -405,7 +407,7 @@ body {
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
   .app-shell {
     padding: 14px;
   }
