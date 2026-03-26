@@ -446,7 +446,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
         <div className="brand-block">
           <Text className="brand-kicker">Vault Workspace</Text>
           <Title level={3} className="topbar-title">API Key Vault</Title>
-          <Text type="secondary">桌面优先 · 专业检索视图</Text>
         </div>
         <Space wrap>
           <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
@@ -525,7 +524,8 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   columns={tableColumns}
                   dataSource={secrets}
                   loading={loading}
-                  pagination={{ pageSize: 12, hideOnSinglePage: true }}
+                  pagination={{ pageSize: 8, hideOnSinglePage: true, size: 'small' }}
+                  scroll={{ y: 'calc(100vh - 360px)' }}
                   size="middle"
                   onRow={(record) => ({
                     onClick: () => handleView(record.id),
