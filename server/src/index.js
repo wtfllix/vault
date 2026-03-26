@@ -9,6 +9,26 @@ import { decryptJson, encryptJson } from './crypto.js';
 const app = Fastify({ logger: true });
 const SECRET_TYPES = new Set(['apikey', 'ssh', 'password', 'database', 'custom', 'long_text', 'config_file']);
 
+const hasAnyValue = (value) => {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => hasAnyValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).some((item) => hasAnyValue(item));
+  }
+  return value !== null && value !== undefined;
+};
+
+const buildDefaultName = () => {
+  const now = new Date();
+  const date = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  return `未命名-${date}-${time}`;
+};
+
 await app.register(cors, {
   origin: true
 });
@@ -127,34 +147,21 @@ app.post('/api/secrets', { preHandler: [app.authenticate] }, async (request, rep
   if (!SECRET_TYPES.has(secret_type)) {
     return reply.code(400).send({ message: '不支持的密钥类型' });
   }
-  if (!name || !String(name).trim()) {
-    return reply.code(400).send({ message: '名称不能为空' });
-  }
-  if (!data || typeof data !== 'object') {
-    return reply.code(400).send({ message: '密钥内容格式不正确' });
-  }
-  if (secret_type === 'long_text') {
-    if (typeof data.content !== 'string' || !data.content.trim()) {
-      return reply.code(400).send({ message: '长文本内容不能为空' });
-    }
-  }
-  if (secret_type === 'config_file') {
-    if (typeof data.fileName !== 'string' || !data.fileName.trim()) {
-      return reply.code(400).send({ message: '文件名不能为空' });
-    }
-    if (typeof data.contentBase64 !== 'string' || !data.contentBase64.trim()) {
-      return reply.code(400).send({ message: '文件内容不能为空' });
-    }
+  const normalizedData = data && typeof data === 'object' ? data : {};
+  const normalizedName = String(name || '').trim();
+  const normalizedNote = String(note || '').trim();
+  if (!hasAnyValue(normalizedData) && !normalizedName && !normalizedNote) {
+    return reply.code(400).send({ message: '请至少填写一个字段' });
   }
 
-  const encrypted = encryptJson(data);
+  const encrypted = encryptJson(normalizedData);
   const result = await pool.query(
     `
       INSERT INTO secrets (secret_type, name, encrypted_data, note)
       VALUES ($1, $2, $3, $4)
       RETURNING id
     `,
-    [secret_type, String(name).trim(), encrypted, String(note)]
+    [secret_type, normalizedName || buildDefaultName(), encrypted, normalizedNote]
   );
 
   return { id: Number(result.rows[0].id) };

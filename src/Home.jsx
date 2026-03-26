@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Empty,
   Form,
   Input,
   Modal,
   Popconfirm,
   Select,
   Space,
+  Table,
   Tag,
   Typography,
   message
@@ -15,8 +17,8 @@ import {
 import {
   AppstoreOutlined,
   CopyOutlined,
-  DownloadOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EyeOutlined,
   FileOutlined,
   FileTextOutlined,
@@ -50,6 +52,36 @@ const SIDEBAR_ITEMS = [
   ...TYPE_ORDER.map((key) => ({ key, label: SECRET_TYPES[key].label, icon: SECRET_TYPES[key].icon }))
 ];
 
+const FIELD_LABELS = {
+  apiUrl: 'API 地址',
+  key: 'API Key',
+  privateKey: '私钥',
+  publicKey: '公钥',
+  passphrase: '口令',
+  url: '地址',
+  username: '用户名',
+  password: '密码',
+  type: '类型',
+  host: '主机',
+  port: '端口',
+  database: '数据库',
+  content: '内容',
+  fileName: '文件名',
+  mimeType: 'MIME 类型',
+  size: '大小'
+};
+
+const formatTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) {
+    return String(value);
+  }
+  return `${time.getFullYear()}-${String(time.getMonth() + 1).padStart(2, '0')}-${String(time.getDate()).padStart(2, '0')} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+};
+
 const Home = ({ onLogout, onAuthExpired }) => {
   const [secrets, setSecrets] = useState([]);
   const [counts, setCounts] = useState({});
@@ -57,23 +89,23 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [query, setQuery] = useState('');
   const [activeType, setActiveType] = useState('all');
   const [modalVisible, setModalVisible] = useState(false);
-  const [detailVisible, setDetailVisible] = useState(false);
   const [secretType, setSecretType] = useState('apikey');
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [form] = Form.useForm();
+
   const totalCount = TYPE_ORDER.reduce((sum, key) => sum + (counts[key] || 0), 0);
 
   const loadCounts = async () => {
     try {
       const data = await api.getSecrets({});
       const next = {};
-      TYPE_ORDER.forEach((t) => {
-        next[t] = data.filter((x) => x.secret_type === t).length;
+      TYPE_ORDER.forEach((typeKey) => {
+        next[typeKey] = data.filter((item) => item.secret_type === typeKey).length;
       });
       setCounts(next);
     } catch {
-      // 忽略计数刷新失败，不阻断主流程
+      // 忽略计数失败
     }
   };
 
@@ -83,6 +115,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       const normalizedQuery = searchText.trim();
       if (type === 'all' && !normalizedQuery) {
         setSecrets([]);
+        setSelectedSecret(null);
         return;
       }
 
@@ -91,6 +124,13 @@ const Home = ({ onLogout, onAuthExpired }) => {
         type: type === 'all' ? '' : type
       });
       setSecrets(data);
+
+      if (selectedSecret) {
+        const stillExists = data.find((item) => item.id === selectedSecret.id);
+        if (!stillExists) {
+          setSelectedSecret(null);
+        }
+      }
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
@@ -99,6 +139,19 @@ const Home = ({ onLogout, onAuthExpired }) => {
       message.error(error.message || '加载失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleView = async (id) => {
+    try {
+      const detail = await api.getSecretDetail(id);
+      setSelectedSecret(detail);
+    } catch (error) {
+      if (error.message.includes('未授权')) {
+        onAuthExpired();
+        return;
+      }
+      message.error(error.message || '读取详情失败');
     }
   };
 
@@ -115,22 +168,40 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
   const handleSidebarChange = async (key) => {
     setActiveType(key);
+    setSelectedSecret(null);
     await loadSecrets(query, key);
   };
+
+  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const marker = 'base64,';
+      const index = result.indexOf(marker);
+      if (index === -1) {
+        reject(new Error('文件读取失败'));
+        return;
+      }
+      resolve(result.slice(index + marker.length));
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
 
   const handleAdd = async (values) => {
     try {
       const data = {};
+      const normalizedName = String(values.name || '').trim();
+      const normalizedNote = String(values.note || '').trim();
+
       if (secretType === 'config_file') {
-        if (!selectedFile) {
-          message.error('请选择配置文件');
-          return;
+        if (selectedFile) {
+          const contentBase64 = await readFileAsBase64(selectedFile);
+          data.fileName = selectedFile.name;
+          data.mimeType = selectedFile.type || 'application/octet-stream';
+          data.size = selectedFile.size;
+          data.contentBase64 = contentBase64;
         }
-        const contentBase64 = await readFileAsBase64(selectedFile);
-        data.fileName = selectedFile.name;
-        data.mimeType = selectedFile.type || 'application/octet-stream';
-        data.size = selectedFile.size;
-        data.contentBase64 = contentBase64;
       } else {
         const fields = SECRET_TYPES[secretType].fields;
         fields.forEach((field) => {
@@ -142,9 +213,9 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
       await api.addSecret({
         secret_type: secretType,
-        name: values.name,
+        name: normalizedName,
         data,
-        note: values.note || ''
+        note: normalizedNote
       });
 
       message.success('添加成功');
@@ -165,6 +236,9 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const handleDelete = async (id) => {
     try {
       await api.deleteSecret(id);
+      if (selectedSecret?.id === id) {
+        setSelectedSecret(null);
+      }
       message.success('删除成功');
       await Promise.all([loadSecrets(query, activeType), loadCounts()]);
     } catch (error) {
@@ -176,20 +250,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
     }
   };
 
-  const handleView = async (id) => {
-    try {
-      const detail = await api.getSecretDetail(id);
-      setSelectedSecret(detail);
-      setDetailVisible(true);
-    } catch (error) {
-      if (error.message.includes('未授权')) {
-        onAuthExpired();
-        return;
-      }
-      message.error(error.message || '读取详情失败');
-    }
-  };
-
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(String(text));
@@ -198,22 +258,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
       message.error('复制失败');
     }
   };
-
-  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const marker = 'base64,';
-      const index = result.indexOf(marker);
-      if (index === -1) {
-        reject(new Error('文件读取失败'));
-        return;
-      }
-      resolve(result.slice(index + marker.length));
-    };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
-  });
 
   const downloadFileFromSecret = (detail) => {
     const payload = detail?.data || {};
@@ -238,44 +282,19 @@ const Home = ({ onLogout, onAuthExpired }) => {
     }
   };
 
-  const allModeResults = activeType === 'all' ? secrets : [];
-
-  const renderSecretItems = (list, showTypeTag = false) => (
-    <div className="secret-list">
-      {list.map((item) => (
-        <div key={item.id} className="secret-item">
-          <div className="secret-item-head">
-            <Space size={8}>
-              {showTypeTag ? SECRET_TYPES[item.secret_type]?.icon : null}
-              <Text strong>{item.name}</Text>
-              {showTypeTag ? <Tag>{SECRET_TYPES[item.secret_type]?.label || item.secret_type}</Tag> : null}
-            </Space>
-            <Space size={4}>
-              <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(item.id)} />
-              <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(item.id)}>
-                <Button type="text" icon={<DeleteOutlined />} danger />
-              </Popconfirm>
-            </Space>
-          </div>
-          <Text className="secret-preview" type="secondary">{item.preview || '***'}</Text>
-        </div>
-      ))}
-    </div>
-  );
-
   const renderFormFields = () => {
     const fields = SECRET_TYPES[secretType].fields;
     return fields.map((field) => {
       if (field === 'apiUrl') {
         return (
-          <Form.Item key={field} name={field} label="API 地址" rules={[{ required: true, message: '请输入 API 地址' }]}>
+          <Form.Item key={field} name={field} label="API 地址">
             <Input placeholder="https://api.example.com/v1" />
           </Form.Item>
         );
       }
       if (field === 'key') {
         return (
-          <Form.Item key={field} name={field} label="API Key" rules={[{ required: true, message: '请输入 API Key' }]}>
+          <Form.Item key={field} name={field} label="API Key">
             <Input.TextArea rows={3} />
           </Form.Item>
         );
@@ -295,14 +314,14 @@ const Home = ({ onLogout, onAuthExpired }) => {
       if (field === 'content') {
         const contentLabel = secretType === 'long_text' ? '长文本内容' : '内容';
         return (
-          <Form.Item key={field} name={field} label={contentLabel} rules={[{ required: true, message: '请输入内容' }]}>
+          <Form.Item key={field} name={field} label={contentLabel}>
             <Input.TextArea rows={secretType === 'long_text' ? 8 : 4} />
           </Form.Item>
         );
       }
       if (field === 'file') {
         return (
-          <Form.Item key={field} label="配置文件" required>
+          <Form.Item key={field} label="配置文件">
             <input
               type="file"
               onChange={(e) => {
@@ -329,18 +348,110 @@ const Home = ({ onLogout, onAuthExpired }) => {
     });
   };
 
+  const tableColumns = useMemo(() => {
+    const columns = [
+      {
+        title: '类型',
+        dataIndex: 'secret_type',
+        key: 'secret_type',
+        width: 140,
+        render: (value) => (
+          <Tag icon={SECRET_TYPES[value]?.icon}>
+            {SECRET_TYPES[value]?.label || value}
+          </Tag>
+        )
+      },
+      {
+        title: '名称',
+        dataIndex: 'name',
+        key: 'name',
+        width: 240,
+        render: (_, record) => (
+          <Space size={8}>
+            <Text strong>{record.name}</Text>
+          </Space>
+        )
+      },
+      {
+        title: '预览',
+        dataIndex: 'preview',
+        key: 'preview',
+        ellipsis: true,
+        render: (value) => <Text type="secondary">{value || '***'}</Text>
+      },
+      {
+        title: '更新时间',
+        dataIndex: 'created_at',
+        key: 'created_at',
+        width: 180,
+        render: (value) => <Text type="secondary">{formatTime(value)}</Text>
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 120,
+        render: (_, record) => (
+          <Space size={2}>
+            <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(record.id)} />
+            <Popconfirm title="确认删除该条记录？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="text" icon={<DeleteOutlined />} danger />
+            </Popconfirm>
+          </Space>
+        )
+      }
+    ];
+    return columns;
+  }, []);
+
+  const renderDetailPanel = () => {
+    if (!selectedSecret) {
+      return (
+        <div className="detail-empty-wrap">
+          <Empty description="选择左侧一条记录查看详情" />
+        </div>
+      );
+    }
+
+    return (
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Text><Text strong>名称：</Text>{selectedSecret.name}</Text>
+        <Text><Text strong>类型：</Text>{SECRET_TYPES[selectedSecret.secret_type]?.label || selectedSecret.secret_type}</Text>
+        {selectedSecret.secret_type === 'config_file' ? (
+          <Space>
+            <Text><Text strong>文件：</Text>{selectedSecret.data?.fileName || '-'}</Text>
+            <Button icon={<DownloadOutlined />} onClick={() => downloadFileFromSecret(selectedSecret)}>
+              下载原文件
+            </Button>
+          </Space>
+        ) : null}
+        {Object.entries(selectedSecret.data || {}).map(([key, value]) => (
+          key === 'contentBase64' ? null : (
+            <div key={key} className="detail-row">
+              <span className="detail-key">{FIELD_LABELS[key] || key}</span>
+              <Space style={{ width: '100%' }} align="start">
+                <pre className="detail-value">{String(value)}</pre>
+                <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(value)} />
+              </Space>
+            </div>
+          )
+        ))}
+        {selectedSecret.note ? <Text><Text strong>备注：</Text>{selectedSecret.note}</Text> : null}
+      </Space>
+    );
+  };
+
   return (
     <div className="app-shell page-enter">
       <header className="home-topbar glass-panel">
         <div className="brand-block">
           <Text className="brand-kicker">Vault Workspace</Text>
           <Title level={3} className="topbar-title">API Key Vault</Title>
-          <Text type="secondary">局域网 Web MVP · 安全密钥管理</Text>
+          <Text type="secondary">桌面优先 · 专业检索视图</Text>
         </div>
         <Space wrap>
           <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-            添加密钥
+            新建
           </Button>
           <Button icon={<LogoutOutlined />} onClick={onLogout}>
             退出
@@ -348,7 +459,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
         </Space>
       </header>
 
-      <div className="home-layout">
+      <div className="home-layout desktop-focus">
         <aside className="home-sidebar glass-panel">
           <div className="sidebar-title">导航</div>
           <div className="sidebar-list">
@@ -381,8 +492,10 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
         <main className="home-main">
           <Card className="glass-panel search-hero" bordered={false}>
-            <Title level={3} style={{ marginTop: 0 }}>搜索你的密钥</Title>
-            <Text type="secondary">支持按名称和类型快速查找</Text>
+            <div className="search-hero-header">
+              <Title level={4} style={{ margin: 0 }}>全局搜索</Title>
+              <Text type="secondary">按名称或类型检索，点击行查看详情</Text>
+            </div>
             <Input
               allowClear
               size="large"
@@ -394,33 +507,43 @@ const Home = ({ onLogout, onAuthExpired }) => {
             />
           </Card>
 
-          <div className="result-sections">
-            {activeType === 'all' ? (
-              <div className="search-result-list">
-                {renderSecretItems(allModeResults, true)}
+          <div className="desktop-content-grid">
+            <Card className="glass-panel table-card" bordered={false}>
+              <div className="table-toolbar">
+                <Space size={10}>
+                  <Text strong>{activeType === 'all' ? '搜索结果' : `${SECRET_TYPES[activeType]?.label || activeType} 列表`}</Text>
+                  <Tag>{secrets.length}</Tag>
+                </Space>
               </div>
-            ) : null}
-            {activeType !== 'all' ? (
-              <Card
-                className="glass-panel result-card"
-                bordered={false}
-                title={(
-                  <Space>
-                    {SECRET_TYPES[activeType]?.icon}
-                    <span>{SECRET_TYPES[activeType]?.label || activeType}</span>
-                    <Tag>{secrets.length}</Tag>
-                  </Space>
-                )}
-              >
-                {renderSecretItems(secrets)}
-              </Card>
-            ) : null}
+              {activeType === 'all' && !query.trim() ? (
+                <div className="table-empty-wrap">
+                  <Empty description="先输入关键词开始搜索" />
+                </div>
+              ) : (
+                <Table
+                  rowKey="id"
+                  columns={tableColumns}
+                  dataSource={secrets}
+                  loading={loading}
+                  pagination={{ pageSize: 12, hideOnSinglePage: true }}
+                  size="middle"
+                  onRow={(record) => ({
+                    onClick: () => handleView(record.id),
+                    className: selectedSecret?.id === record.id ? 'table-row-active' : ''
+                  })}
+                />
+              )}
+            </Card>
+
+            <Card className="glass-panel detail-panel-card" bordered={false} title="详情">
+              {renderDetailPanel()}
+            </Card>
           </div>
         </main>
       </div>
 
       <Modal
-        title="添加密钥"
+        title="新建记录"
         open={modalVisible}
         width={640}
         destroyOnClose
@@ -433,7 +556,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" requiredMark={false} onFinish={handleAdd}>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+          <Form.Item name="name" label="名称">
             <Input />
           </Form.Item>
           <Form.Item label="类型">
@@ -454,41 +577,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
-      </Modal>
-
-      <Modal
-        title="密钥详情"
-        open={detailVisible}
-        width={640}
-        footer={null}
-        onCancel={() => setDetailVisible(false)}
-      >
-        {selectedSecret && (
-          <Space direction="vertical" size={10} style={{ width: '100%' }}>
-            <Text><Text strong>名称：</Text>{selectedSecret.name}</Text>
-            <Text><Text strong>类型：</Text>{SECRET_TYPES[selectedSecret.secret_type]?.label || selectedSecret.secret_type}</Text>
-            {selectedSecret.secret_type === 'config_file' ? (
-              <Space>
-                <Text><Text strong>文件：</Text>{selectedSecret.data?.fileName || '-'}</Text>
-                <Button icon={<DownloadOutlined />} onClick={() => downloadFileFromSecret(selectedSecret)}>
-                  下载原文件
-                </Button>
-              </Space>
-            ) : null}
-            {Object.entries(selectedSecret.data || {}).map(([key, value]) => (
-              key === 'contentBase64' ? null : (
-              <div key={key} className="detail-row">
-                <span className="detail-key">{key}</span>
-                <Space style={{ width: '100%' }} align="start">
-                  <pre className="detail-value">{String(value)}</pre>
-                  <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(value)} />
-                </Space>
-              </div>
-              )
-            ))}
-            {selectedSecret.note ? <Text><Text strong>备注：</Text>{selectedSecret.note}</Text> : null}
-          </Space>
-        )}
       </Modal>
     </div>
   );
