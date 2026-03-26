@@ -447,7 +447,18 @@ const Home = ({ onLogout, onAuthExpired }) => {
           <Text className="brand-kicker">Vault Workspace</Text>
           <Title level={3} className="topbar-title">API Key Vault</Title>
         </div>
-        <Space wrap>
+        <div className="topbar-search-wrap">
+          <Input
+            allowClear
+            size="large"
+            value={query}
+            prefix={<SearchOutlined />}
+            placeholder="全局搜索：名称 / 类型，例如 apikey、ssh、数据库"
+            className="topbar-search"
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+        <Space wrap className="topbar-actions">
           <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
             新建
@@ -490,22 +501,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
         </aside>
 
         <main className="home-main">
-          <Card className="glass-panel search-hero" bordered={false}>
-            <div className="search-hero-header">
-              <Title level={4} style={{ margin: 0 }}>全局搜索</Title>
-              <Text type="secondary">按名称或类型检索，点击行查看详情</Text>
-            </div>
-            <Input
-              allowClear
-              size="large"
-              value={query}
-              prefix={<SearchOutlined />}
-              placeholder="输入名称 / 类型，例如：apikey、ssh、数据库"
-              className="hero-search"
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-          </Card>
-
           <div className="desktop-content-grid">
             <Card className="glass-panel table-card" bordered={false}>
               <div className="table-toolbar">
