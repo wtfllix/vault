@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Button,
-  Card,
   Empty,
   Form,
   Input,
@@ -442,70 +441,60 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
   return (
     <div className="app-shell page-enter">
-      <header className="home-topbar glass-panel">
-        <div className="brand-block">
-          <Text className="brand-kicker">Vault Workspace</Text>
-          <Title level={3} className="topbar-title">API Key Vault</Title>
-        </div>
-        <div className="topbar-search-wrap">
-          <Input
-            allowClear
-            size="large"
-            value={query}
-            prefix={<SearchOutlined />}
-            placeholder="全局搜索：名称 / 类型，例如 apikey、ssh、数据库"
-            className="topbar-search"
-            onChange={(e) => handleSearch(e.target.value)}
-          />
-        </div>
-        <Space wrap className="topbar-actions">
-          <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-            新建
-          </Button>
-          <Button icon={<LogoutOutlined />} onClick={onLogout}>
-            退出
-          </Button>
-        </Space>
-      </header>
-
-      <div className="home-layout desktop-focus">
-        <aside className="home-sidebar glass-panel">
-          <div className="sidebar-title">导航</div>
-          <div className="sidebar-list">
-            {SIDEBAR_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`sidebar-item ${activeType === item.key ? 'is-active' : ''}`}
-                onClick={() => handleSidebarChange(item.key)}
-              >
-                <span className="sidebar-item-left">
-                  {item.icon}
-                  <span>{item.label}</span>
-                </span>
-                {item.key !== 'all' ? <Tag>{counts[item.key] || 0}</Tag> : null}
-              </button>
-            ))}
+      <div className="workspace-frame glass-panel">
+        <div className="workspace-topbar">
+          <div className="workspace-title-cell">
+            <Title level={4} className="workspace-title">API Key Vault</Title>
           </div>
-          <div className="sidebar-actions">
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => Promise.all([loadSecrets(query, activeType), loadCounts()])}
-              loading={loading}
-              block
-            >
-              刷新
-            </Button>
+          <div className="workspace-search-cell">
+            <Input
+              allowClear
+              size="large"
+              value={query}
+              prefix={<SearchOutlined />}
+              placeholder="全局搜索：名称 / 类型，例如 apikey、ssh、数据库"
+              className="topbar-search"
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+            <Space wrap className="workspace-actions">
+              <Tag icon={<AppstoreOutlined />}>总计 {totalCount}</Tag>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                新建
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={() => Promise.all([loadSecrets(query, activeType), loadCounts()])} loading={loading} />
+              <Button icon={<LogoutOutlined />} onClick={onLogout}>
+                退出
+              </Button>
+            </Space>
           </div>
-        </aside>
+        </div>
 
-        <main className="home-main">
-          <div className="desktop-content-grid">
-            <Card className="glass-panel table-card" bordered={false}>
+        <div className="workspace-body">
+          <aside className="workspace-sidebar">
+            <div className="sidebar-title">Data type</div>
+            <div className="sidebar-list">
+              {SIDEBAR_ITEMS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`sidebar-item ${activeType === item.key ? 'is-active' : ''}`}
+                  onClick={() => handleSidebarChange(item.key)}
+                >
+                  <span className="sidebar-item-left">
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </span>
+                  {item.key !== 'all' ? <Tag>{counts[item.key] || 0}</Tag> : null}
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <section className="workspace-list">
+            <div className="table-card">
               <div className="table-toolbar">
                 <Space size={10}>
-                  <Text strong>{activeType === 'all' ? '搜索结果' : `${SECRET_TYPES[activeType]?.label || activeType} 列表`}</Text>
+                  <Text strong>{activeType === 'all' ? 'Data items' : `${SECRET_TYPES[activeType]?.label || activeType} items`}</Text>
                   <Tag>{secrets.length}</Tag>
                 </Space>
               </div>
@@ -520,7 +509,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   dataSource={secrets}
                   loading={loading}
                   pagination={{ pageSize: 8, hideOnSinglePage: true, size: 'small' }}
-                  scroll={{ y: 'calc(100vh - 360px)' }}
+                  scroll={{ y: 'calc(100vh - 330px)' }}
                   size="middle"
                   onRow={(record) => ({
                     onClick: () => handleView(record.id),
@@ -528,13 +517,16 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   })}
                 />
               )}
-            </Card>
+            </div>
+          </section>
 
-            <Card className="glass-panel detail-panel-card" bordered={false} title="详情">
+          <section className="workspace-detail">
+            <div className="detail-panel-card">
+              <div className="detail-panel-head">Data details</div>
               {renderDetailPanel()}
-            </Card>
-          </div>
-        </main>
+            </div>
+          </section>
+        </div>
       </div>
 
       <Modal
