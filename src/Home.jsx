@@ -14,7 +14,6 @@ import {
   message
 } from 'antd';
 import {
-  AppstoreOutlined,
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
@@ -76,13 +75,6 @@ const formatTime = (value) => {
   }
   return `${time.getFullYear()}-${String(time.getMonth() + 1).padStart(2, '0')}-${String(time.getDate()).padStart(2, '0')} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
 };
-
-const DEFAULT_SUMMARY = [
-  { key: 'all', label: '全部记录', icon: <AppstoreOutlined /> },
-  { key: 'apikey', label: 'API Key', icon: <KeyOutlined /> },
-  { key: 'password', label: '账号密码', icon: <UserOutlined /> },
-  { key: 'config_file', label: '配置文件', icon: <FileOutlined /> }
-];
 
 const Home = ({ onLogout, onAuthExpired }) => {
   const [secrets, setSecrets] = useState([]);
@@ -460,11 +452,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
       <div className="workspace-shell">
         <section className="glass-panel hero-card">
           <div className="hero-copy">
-            <Tag bordered={false} className="hero-badge">个人自部署</Tag>
-            <Title level={2} className="hero-title">打开页面，直接管理你的常用密钥</Title>
-            <Paragraph className="hero-subtitle">
-              所有记录集中保存在你自己的服务里，适合个人开发者日常保存 API Key、数据库账号、SSH 密钥和配置文件。
-            </Paragraph>
+            <div className="hero-meta">
+              <Tag bordered={false} className="hero-badge">个人自部署</Tag>
+              <Tag>{counts.all || 0} 条记录</Tag>
+            </div>
+            <Title level={3} className="hero-title">你的记录库</Title>
+            <Text className="hero-subtitle">搜索、筛选并直接查看完整内容。</Text>
           </div>
           <div className="hero-actions">
             <Input
@@ -487,21 +480,6 @@ const Home = ({ onLogout, onAuthExpired }) => {
               </Button>
             </Space>
           </div>
-        </section>
-
-        <section className="summary-grid">
-          {DEFAULT_SUMMARY.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`summary-card ${activeType === item.key ? 'is-active' : ''}`}
-              onClick={() => setActiveType(item.key)}
-            >
-              <span className="summary-icon">{item.icon}</span>
-              <span className="summary-label">{item.label}</span>
-              <span className="summary-value">{counts[item.key] || 0}</span>
-            </button>
-          ))}
         </section>
 
         <div className="workspace-grid">
