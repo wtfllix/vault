@@ -408,7 +408,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
     }
 
     return (
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <div className="detail-content">
         <div className="detail-meta">
           <Tag icon={SECRET_TYPES[selectedSecret.secret_type]?.icon}>
             {SECRET_TYPES[selectedSecret.secret_type]?.label || selectedSecret.secret_type}
@@ -419,21 +419,21 @@ const Home = ({ onLogout, onAuthExpired }) => {
           {selectedSecret.name}
         </Title>
         {selectedSecret.secret_type === 'config_file' ? (
-          <Space>
+          <div className="detail-file-row">
             <Text><Text strong>文件：</Text>{selectedSecret.data?.fileName || '-'}</Text>
             <Button icon={<DownloadOutlined />} onClick={() => downloadFileFromSecret(selectedSecret)}>
               下载原文件
             </Button>
-          </Space>
+          </div>
         ) : null}
         {Object.entries(selectedSecret.data || {}).map(([key, value]) => (
           key === 'contentBase64' ? null : (
             <div key={key} className="detail-row">
               <span className="detail-key">{FIELD_LABELS[key] || key}</span>
-              <Space style={{ width: '100%' }} align="start">
+              <div className="detail-value-wrap">
                 <pre className="detail-value">{String(value)}</pre>
                 <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(value)} />
-              </Space>
+              </div>
             </div>
           )
         ))}
@@ -443,7 +443,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
             <pre className="detail-value">{selectedSecret.note}</pre>
           </div>
         ) : null}
-      </Space>
+      </div>
     );
   };
 
@@ -547,7 +547,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
                 dataSource={filteredSecrets}
                 loading={loading}
                 pagination={{ pageSize: 8, hideOnSinglePage: true, size: 'small' }}
-                scroll={{ x: 720 }}
+                scroll={{ x: 720, y: 'calc(100vh - 300px)' }}
                 size="middle"
                 onRow={(record) => ({
                   onClick: () => handleView(record.id),
