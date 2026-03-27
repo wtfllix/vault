@@ -61,6 +61,7 @@ const request = async (path, options = {}) => {
 
 export const api = {
   getAuthState: () => request('/api/auth/state'),
+  getSession: () => request('/api/auth/session'),
   bootstrap: (password) => request('/api/auth/bootstrap', {
     method: 'POST',
     body: JSON.stringify({ password })

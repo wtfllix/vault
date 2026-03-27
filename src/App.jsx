@@ -14,7 +14,19 @@ const App = () => {
       try {
         const state = await api.getAuthState();
         setInitialized(state.initialized);
-        setIsLoggedIn(Boolean(getToken()));
+        const token = getToken();
+        if (!token) {
+          setIsLoggedIn(false);
+          return;
+        }
+
+        try {
+          await api.getSession();
+          setIsLoggedIn(true);
+        } catch {
+          clearToken();
+          setIsLoggedIn(false);
+        }
       } catch (error) {
         message.error(`初始化失败: ${error.message}`);
       } finally {

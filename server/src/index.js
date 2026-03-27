@@ -49,6 +49,8 @@ app.get('/api/health', async () => ({ ok: true }));
 
 app.get('/api/auth/state', async () => getBootstrapState());
 
+app.get('/api/auth/session', { preHandler: [app.authenticate] }, async () => ({ ok: true }));
+
 app.post('/api/auth/bootstrap', async (request, reply) => {
   const { password } = request.body || {};
   if (!password || password.length < 8) {

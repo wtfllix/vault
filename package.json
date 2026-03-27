@@ -1,7 +1,7 @@
 {
-  "name": "apikey-vault-desktop",
+  "name": "apikey-vault-web",
   "version": "1.0.0",
-  "description": "API Key 保险箱 - 桌面版",
+  "description": "API Key 保险箱 - 自部署个人版",
   "packageManager": "pnpm@10.32.1",
   "type": "module",
   "scripts": {
@@ -10,10 +10,7 @@
     "web-dev": "vite",
     "start-api": "node server/src/index.js",
     "build": "vite build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri-dev": "tauri dev",
-    "tauri-build": "tauri build"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -22,13 +19,11 @@
     "@ant-design/icons": "^5.3.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/jwt": "^10.0.0",
-    "@tauri-apps/api": "^2.0.0",
     "argon2": "^0.44.0",
     "fastify": "^5.6.1",
     "pg": "^8.16.3"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.1.0"
   }
