@@ -349,37 +349,48 @@ const Home = ({ onLogout, onAuthExpired }) => {
       title: '类型',
       dataIndex: 'secret_type',
       key: 'secret_type',
-      width: 144,
+      width: 128,
       render: (value) => (
-        <Tag icon={SECRET_TYPES[value]?.icon}>
-          {SECRET_TYPES[value]?.label || value}
-        </Tag>
+        <span className="table-type-tag">
+          <Tag icon={SECRET_TYPES[value]?.icon}>
+            {SECRET_TYPES[value]?.label || value}
+          </Tag>
+        </span>
       )
     },
     {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (_, record) => <Text strong>{record.name}</Text>
+      ellipsis: true,
+      render: (_, record) => (
+        <Text strong className="table-cell-ellipsis" title={record.name}>
+          {record.name}
+        </Text>
+      )
     },
     {
       title: '摘要',
       dataIndex: 'preview',
       key: 'preview',
       ellipsis: true,
-      render: (value) => <Text type="secondary">{value || '无预览'}</Text>
+      render: (value) => (
+        <Text type="secondary" className="table-cell-ellipsis" title={value || '无预览'}>
+          {value || '无预览'}
+        </Text>
+      )
     },
     {
       title: '更新时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 176,
+      width: 162,
       render: (value) => <Text type="secondary">{formatTime(value)}</Text>
     },
     {
       title: '操作',
       key: 'actions',
-      width: 116,
+      width: 92,
       render: (_, record) => (
         <Space size={2}>
           <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(record.id)} />
@@ -484,8 +495,11 @@ const Home = ({ onLogout, onAuthExpired }) => {
 
         <div className="workspace-grid">
           <aside className="glass-panel sidebar-card">
-            <div className="sidebar-head">
-              <Text strong>分类筛选</Text>
+            <div className="panel-head">
+              <div className="panel-head-copy">
+                <Title level={4} className="panel-title">分类筛选</Title>
+                <Text className="panel-subtitle">按记录类型快速收窄范围</Text>
+              </div>
               <Tag>{counts.all || 0} 条</Tag>
             </div>
             <div className="sidebar-list">
@@ -518,12 +532,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
           </aside>
 
           <section className="glass-panel section-card">
-            <div className="section-head">
-              <div>
-                <Title level={4} className="section-title">
+            <div className="panel-head">
+              <div className="panel-head-copy">
+                <Title level={4} className="panel-title">
                   {activeType === 'all' ? '全部记录' : SECRET_TYPES[activeType]?.label}
                 </Title>
-                <Text type="secondary">
+                <Text className="panel-subtitle">
                   {query.trim() ? `已根据“${query}”筛选，共 ${filteredSecrets.length} 条结果` : `当前共有 ${filteredSecrets.length} 条记录`}
                 </Text>
               </div>
@@ -547,8 +561,9 @@ const Home = ({ onLogout, onAuthExpired }) => {
                 dataSource={filteredSecrets}
                 loading={loading}
                 pagination={{ pageSize: 8, hideOnSinglePage: true, size: 'small' }}
-                scroll={{ x: 720, y: 'calc(100vh - 300px)' }}
+                scroll={{ y: 'calc(100vh - 300px)' }}
                 size="middle"
+                tableLayout="fixed"
                 onRow={(record) => ({
                   onClick: () => handleView(record.id),
                   className: selectedSecretId === record.id ? 'table-row-active' : ''
@@ -558,7 +573,14 @@ const Home = ({ onLogout, onAuthExpired }) => {
           </section>
 
           <section className="glass-panel detail-panel-card">
-            <div className="detail-panel-head">记录详情</div>
+            <div className="panel-head">
+              <div className="panel-head-copy">
+                <Title level={4} className="panel-title">记录详情</Title>
+                <Text className="panel-subtitle">
+                  {selectedSecret ? '查看完整内容并复制所需字段' : '选择一条记录后在此查看详情'}
+                </Text>
+              </div>
+            </div>
             {renderDetailPanel()}
           </section>
         </div>
