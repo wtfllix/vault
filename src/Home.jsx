@@ -473,20 +473,20 @@ const Home = ({ onLogout, onAuthExpired }) => {
           <div className="hero-actions">
             <Input
               allowClear
-              size="large"
+              size="middle"
               value={query}
               prefix={<SearchOutlined />}
               placeholder="搜索名称、类型或摘要"
               onChange={(e) => setQuery(e.target.value)}
             />
             <Space wrap>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+              <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                 新建记录
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={loadSecrets} loading={loading}>
+              <Button size="middle" icon={<ReloadOutlined />} onClick={loadSecrets} loading={loading}>
                 刷新
               </Button>
-              <Button icon={<LogoutOutlined />} onClick={onLogout}>
+              <Button size="middle" icon={<LogoutOutlined />} onClick={onLogout}>
                 退出
               </Button>
             </Space>
@@ -567,7 +567,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   responsive: true,
                   showLessItems: true
                 }}
-                size="middle"
+                size="small"
                 tableLayout="fixed"
                 onRow={(record) => ({
                   onClick: () => handleView(record.id),
