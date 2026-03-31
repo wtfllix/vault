@@ -561,13 +561,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
                 dataSource={filteredSecrets}
                 loading={loading}
                 pagination={{
-                  pageSize: 8,
+                  pageSize: 12,
                   hideOnSinglePage: true,
                   size: 'small',
                   responsive: true,
                   showLessItems: true
                 }}
-                scroll={{ y: 'calc(100vh - 420px)' }}
                 size="middle"
                 tableLayout="fixed"
                 onRow={(record) => ({

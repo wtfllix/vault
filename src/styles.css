@@ -302,7 +302,7 @@ body {
 }
 
 .section-card .ant-table-body {
-  max-height: calc(100vh - 420px) !important;
+  max-height: none !important;
 }
 
 .section-card .ant-table-wrapper .ant-table-pagination {
