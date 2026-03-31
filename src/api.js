@@ -31,10 +31,14 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 const request = async (path, options = {}) => {
   const token = getToken();
+  const hasBody = options.body !== undefined && options.body !== null;
   const headers = {
-    'Content-Type': 'application/json',
     ...(options.headers || {})
   };
+
+  if (hasBody && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
