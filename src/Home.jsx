@@ -17,6 +17,7 @@ import {
   CopyOutlined,
   DeleteOutlined,
   DownloadOutlined,
+  EditOutlined,
   EyeOutlined,
   FileOutlined,
   FileTextOutlined,
@@ -86,6 +87,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
   const [selectedSecret, setSelectedSecret] = useState(null);
   const [selectedSecretId, setSelectedSecretId] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [editingSecretId, setEditingSecretId] = useState(null);
   const [form] = Form.useForm();
 
   const loadSecrets = async () => {
@@ -176,11 +178,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
     reader.readAsDataURL(file);
   });
 
-  const handleAdd = async (values) => {
+  const handleSubmit = async (values) => {
     try {
       const data = {};
       const normalizedName = String(values.name || '').trim();
       const normalizedNote = String(values.note || '').trim();
+      const isEditing = editingSecretId !== null;
 
       if (secretType === 'config_file') {
         if (selectedFile) {
@@ -189,6 +192,8 @@ const Home = ({ onLogout, onAuthExpired }) => {
           data.mimeType = selectedFile.type || 'application/octet-stream';
           data.size = selectedFile.size;
           data.contentBase64 = contentBase64;
+        } else if (isEditing && selectedSecret?.secret_type === 'config_file') {
+          Object.assign(data, selectedSecret.data || {});
         }
       } else {
         const fields = SECRET_TYPES[secretType].fields;
@@ -199,25 +204,35 @@ const Home = ({ onLogout, onAuthExpired }) => {
         });
       }
 
-      await api.addSecret({
+      const payload = {
         secret_type: secretType,
         name: normalizedName,
         data,
         note: normalizedNote
-      });
+      };
 
-      message.success('记录已保存');
+      if (isEditing) {
+        await api.updateSecret(editingSecretId, payload);
+      } else {
+        await api.addSecret(payload);
+      }
+
+      message.success(isEditing ? '记录已更新' : '记录已保存');
       setModalVisible(false);
       setSecretType('apikey');
       setSelectedFile(null);
+      setEditingSecretId(null);
       form.resetFields();
       await loadSecrets();
+      if (isEditing) {
+        await handleView(editingSecretId);
+      }
     } catch (error) {
       if (error.message.includes('未授权')) {
         onAuthExpired();
         return;
       }
-      message.error(error.message || '添加失败');
+      message.error(error.message || (editingSecretId !== null ? '更新失败' : '添加失败'));
     }
   };
 
@@ -276,7 +291,32 @@ const Home = ({ onLogout, onAuthExpired }) => {
     setModalVisible(false);
     setSecretType('apikey');
     setSelectedFile(null);
+    setEditingSecretId(null);
     form.resetFields();
+  };
+
+  const openCreateModal = () => {
+    setEditingSecretId(null);
+    setSecretType('apikey');
+    setSelectedFile(null);
+    form.resetFields();
+    setModalVisible(true);
+  };
+
+  const openEditModal = () => {
+    if (!selectedSecret) {
+      return;
+    }
+
+    setEditingSecretId(selectedSecret.id);
+    setSecretType(selectedSecret.secret_type);
+    setSelectedFile(null);
+    form.setFieldsValue({
+      name: selectedSecret.name,
+      note: selectedSecret.note,
+      ...(selectedSecret.data || {})
+    });
+    setModalVisible(true);
   };
 
   const renderFormFields = () => {
@@ -326,6 +366,9 @@ const Home = ({ onLogout, onAuthExpired }) => {
               }}
             />
             {selectedFile ? <Text type="secondary">已选择：{selectedFile.name}</Text> : null}
+            {!selectedFile && editingSecretId !== null && selectedSecret?.secret_type === 'config_file' ? (
+              <Text type="secondary">未选择新文件时，将保留当前文件：{selectedSecret.data?.fileName || '未命名文件'}</Text>
+            ) : null}
           </Form.Item>
         );
       }
@@ -385,7 +428,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 162,
-      render: (value) => <Text type="secondary">{formatTime(value)}</Text>
+      render: (_, record) => <Text type="secondary">{formatTime(record.updated_at || record.created_at)}</Text>
     },
     {
       title: '操作',
@@ -410,7 +453,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
             description="从左侧列表选择一条记录，查看完整内容"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
               新建第一条记录
             </Button>
           </Empty>
@@ -429,6 +472,12 @@ const Home = ({ onLogout, onAuthExpired }) => {
         <Title level={4} style={{ margin: 0 }}>
           {selectedSecret.name}
         </Title>
+        <Space>
+          <Button icon={<EditOutlined />} onClick={openEditModal}>
+            编辑
+          </Button>
+        </Space>
+        <Text type="secondary">更新时间 {formatTime(selectedSecret.updated_at || selectedSecret.created_at)}</Text>
         {selectedSecret.secret_type === 'config_file' ? (
           <div className="detail-file-row">
             <Text><Text strong>文件：</Text>{selectedSecret.data?.fileName || '-'}</Text>
@@ -480,7 +529,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
               onChange={(e) => setQuery(e.target.value)}
             />
             <Space wrap>
-              <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+              <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={openCreateModal}>
                 新建记录
               </Button>
               <Button size="middle" icon={<ReloadOutlined />} onClick={loadSecrets} loading={loading}>
@@ -549,7 +598,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
                   description={query.trim() ? '没有找到匹配记录' : '还没有保存任何记录'}
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
                     新建记录
                   </Button>
                 </Empty>
@@ -592,7 +641,7 @@ const Home = ({ onLogout, onAuthExpired }) => {
       </div>
 
       <Modal
-        title="新建记录"
+        title={editingSecretId !== null ? '编辑记录' : '新建记录'}
         open={modalVisible}
         width={640}
         destroyOnClose
@@ -600,9 +649,9 @@ const Home = ({ onLogout, onAuthExpired }) => {
         onOk={() => form.submit()}
       >
         <Paragraph className="modal-helper">
-          只填写你真正需要保存的字段即可，名称和备注都支持后续快速搜索。
+          {editingSecretId !== null ? '修改后会覆盖当前记录内容，名称和备注仍可用于快速搜索。' : '只填写你真正需要保存的字段即可，名称和备注都支持后续快速搜索。'}
         </Paragraph>
-        <Form form={form} layout="vertical" requiredMark={false} onFinish={handleAdd}>
+        <Form form={form} layout="vertical" requiredMark={false} onFinish={handleSubmit}>
           <Form.Item name="name" label="名称">
             <Input placeholder="例如：OpenAI 正式环境、生产数据库、服务器 SSH" />
           </Form.Item>

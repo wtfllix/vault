@@ -105,10 +105,10 @@ app.get('/api/secrets', { preHandler: [app.authenticate] }, async (request) => {
   const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
   const result = await pool.query(
     `
-      SELECT id, secret_type, name, encrypted_data, note, created_at
+      SELECT id, secret_type, name, encrypted_data, note, created_at, updated_at
       FROM secrets
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY updated_at DESC
     `,
     values
   );
@@ -138,6 +138,7 @@ app.get('/api/secrets', { preHandler: [app.authenticate] }, async (request) => {
       name: row.name,
       note: row.note,
       created_at: row.created_at,
+      updated_at: row.updated_at,
       preview
     };
   });
@@ -177,7 +178,7 @@ app.get('/api/secrets/:id', { preHandler: [app.authenticate] }, async (request, 
 
   const result = await pool.query(
     `
-      SELECT id, secret_type, name, encrypted_data, note, created_at
+      SELECT id, secret_type, name, encrypted_data, note, created_at, updated_at
       FROM secrets
       WHERE id = $1
       LIMIT 1
@@ -196,8 +197,48 @@ app.get('/api/secrets/:id', { preHandler: [app.authenticate] }, async (request, 
     name: row.name,
     data: decryptJson(row.encrypted_data),
     note: row.note,
-    created_at: row.created_at
+    created_at: row.created_at,
+    updated_at: row.updated_at
   };
+});
+
+app.put('/api/secrets/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  const id = Number(request.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return reply.code(400).send({ message: '无效的 ID' });
+  }
+
+  const { secret_type, name, data, note = '' } = request.body || {};
+  if (!SECRET_TYPES.has(secret_type)) {
+    return reply.code(400).send({ message: '不支持的密钥类型' });
+  }
+
+  const normalizedData = data && typeof data === 'object' ? data : {};
+  const normalizedName = String(name || '').trim();
+  const normalizedNote = String(note || '').trim();
+  if (!hasAnyValue(normalizedData) && !normalizedName && !normalizedNote) {
+    return reply.code(400).send({ message: '请至少填写一个字段' });
+  }
+
+  const encrypted = encryptJson(normalizedData);
+  const result = await pool.query(
+    `
+      UPDATE secrets
+      SET secret_type = $1,
+          name = $2,
+          encrypted_data = $3,
+          note = $4,
+          updated_at = NOW()
+      WHERE id = $5
+    `,
+    [secret_type, normalizedName || buildDefaultName(), encrypted, normalizedNote, id]
+  );
+
+  if (result.rowCount === 0) {
+    return reply.code(404).send({ message: '记录不存在' });
+  }
+
+  return { ok: true };
 });
 
 app.delete('/api/secrets/:id', { preHandler: [app.authenticate] }, async (request, reply) => {

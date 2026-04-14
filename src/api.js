@@ -90,6 +90,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(secret)
   }),
+  updateSecret: (id, secret) => request(`/api/secrets/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(secret)
+  }),
   getSecretDetail: (id) => request(`/api/secrets/${id}`),
   deleteSecret: (id) => request(`/api/secrets/${id}`, { method: 'DELETE' })
 };
