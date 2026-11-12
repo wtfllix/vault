@@ -11,8 +11,8 @@
     "start-api": "node server/src/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test --test-isolation=none server/test/*.test.js",
-    "test:integration": "node --env-file-if-exists=.env.test --test --test-isolation=none server/test/integration.test.js",
+    "test": "node --test --experimental-test-isolation=none server/test/*.test.js",
+    "test:integration": "node --env-file-if-exists=.env.test --test --experimental-test-isolation=none server/test/integration.test.js",
     "test:ui": "playwright test",
     "migrate": "node --env-file=.env server/src/migrate.js",
     "storage:gc": "node --env-file=.env server/src/gc.js"

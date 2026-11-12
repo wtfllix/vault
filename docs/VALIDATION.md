@@ -64,3 +64,11 @@
 Secrets 列表和隐藏详情新增直接复制按钮。API Key 复制 key，账号与数据库记录复制 password，SSH 复制 privateKey，自定义/长文本复制 content，配置文件复制 UTF-8 文本内容（非文本拒绝）。不会回退复制 Provider、URL 或其他元数据，也不会将明文写入组件显示状态。切换记录或离开页面会取消未完成的复制请求。
 
 新增 3 项单元测试验证字段选择、原值保留、配置文本解码、二进制拒绝，以及延迟解密时的原生剪贴板写入。桌面与移动浏览器均已验证实际剪贴板值正确、列表复制不会打开详情、隐藏详情复制后仍无明文。原有显示和逐字段复制保留。
+
+## Node 22 CI 兼容修复
+
+GitHub Actions 运行 43147962380 在测试入口失败，日志为 `node: bad option: --test-isolation=none`；镜像构建任务因此被跳过。原因是 CI/Docker 使用 Node 22，而原测试参数采用了 Node 23.6 才启用的新名称。
+
+两个测试脚本均改用 Node 22 支持、Node 24 仍兼容的 `--experimental-test-isolation=none`。没有跳过或禁用任何测试。已下载并校验官方 Node 22.23.4 二进制，与失败运行的 Node 版本一致，重新执行测试入口、数据库集成与构建。
+
+参考：[失败运行](https://github.com/wtfllix/vault/actions/runs/43147962380)、[Node 22 参数文档](https://nodejs.org/download/release/v22.21.0/docs/api/cli.html#--experimental-test-isolationmode)。修复后的远程结果以 GitHub Actions 对应提交为准。
