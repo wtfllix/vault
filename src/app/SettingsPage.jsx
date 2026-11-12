@@ -9,14 +9,11 @@ export default function SettingsPage({ onLock }) {
       <div className="workspace-heading">
         <div>
           <h1>Settings</h1>
-          <p className="muted">让这个空间适合你。</p>
         </div>
       </div>
       <div className="settings-grid">
         <section className="surface settings-card">
-          <div className="eyebrow">APPEARANCE</div>
           <h2>外观</h2>
-          <p>默认深色，也可以跟随系统。</p>
           <Select
             aria-label="主题"
             value={theme}
@@ -34,9 +31,8 @@ export default function SettingsPage({ onLock }) {
           />
         </section>
         <section className="surface settings-card">
-          <div className="eyebrow">SECURITY</div>
           <h2>主密码</h2>
-          <p>修改后所有设备会立即退出。数据加密密钥保持原样。</p>
+          <p>修改后所有设备将退出。</p>
           <Form
             layout="vertical"
             onFinish={async (values) => {
@@ -68,9 +64,7 @@ export default function SettingsPage({ onLock }) {
           </Form>
         </section>
         <section className="surface settings-card">
-          <div className="eyebrow">SESSIONS</div>
           <h2>设备与会话</h2>
-          <p>默认 30 分钟无活动自动失效。敏感操作需要近期身份验证。</p>
           <Button
             danger
             onClick={() =>
@@ -90,8 +84,7 @@ export default function SettingsPage({ onLock }) {
           </Button>
         </section>
         <section className="surface settings-card">
-          <div className="eyebrow">SHORTCUTS</div>
-          <h2>少一点点击</h2>
+          <h2>快捷键</h2>
           <div className="shortcut-row">
             <span>搜索与命令</span>
             <kbd>⌘ / Ctrl K</kbd>

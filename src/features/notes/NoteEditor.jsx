@@ -12,7 +12,7 @@ import { marked } from 'marked';
 const CodeEditor = lazy(() => import('./CodeEditor'));
 import { request, mutate } from '../../services/api';
 import { loadDraft, saveDraft, removeDraft } from '../../services/drafts';
-import { Favorite, confirmAction } from '../../components/Common';
+import { confirmAction } from '../../components/Common';
 const fingerprint = (v) => JSON.stringify([v.title, v.language, v.content]);
 const languages = [
   { value: 'text', label: 'Plain Text' },
@@ -33,7 +33,6 @@ export default function NoteEditor({ note, onSaved, onClose, onDeleted }) {
   const [error, setError] = useState('');
   const [mode, setMode] = useState('edit');
   const [recovery, setRecovery] = useState(null);
-  const [favorite, setFavorite] = useState(note.favorite);
   const current = useRef(value);
   current.current = value;
   const version = useRef(note.version);
@@ -200,18 +199,6 @@ export default function NoteEditor({ note, onSaved, onClose, onDeleted }) {
           maxLength={255}
           onChange={(e) => change({ title: e.target.value })}
         />
-        <Favorite
-          value={favorite}
-          onClick={async () => {
-            try {
-              await mutate(`/notes/${note.id}/favorite`, { favorite: !favorite }, 'PATCH');
-              setFavorite((v) => !v);
-              onSaved();
-            } catch (e) {
-              message.error(e.message);
-            }
-          }}
-        />
         <Button
           type="text"
           danger
@@ -354,7 +341,6 @@ export default function NoteEditor({ note, onSaved, onClose, onDeleted }) {
           {status}
         </span>
         <span>{value.content.length.toLocaleString()} 字符 · UTF-8</span>
-        <span>内容加密存储</span>
       </footer>
     </section>
   );

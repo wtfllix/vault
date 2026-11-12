@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Alert, Button, Form, Input } from 'antd';
-import { LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { LockOutlined } from '@ant-design/icons';
 import { mutate, setCsrf } from './services/api';
 export default function Login({ initialized, onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -36,8 +36,7 @@ export default function Login({ initialized, onAuthSuccess }) {
         <div className="login-symbol">
           <LockOutlined />
         </div>
-        <h1>{initialized ? '欢迎回来' : '你的私人数字空间'}</h1>
-        <p>Files、Notes 与 Secrets，安静有序地归于一处。</p>
+        <h1>{initialized ? '登录 Vault' : '初始化 Vault'}</h1>
         {error && <Alert type="error" showIcon message={error} />}
         <Form layout="vertical" onFinish={submit} requiredMark={false}>
           {!initialized && (
@@ -78,14 +77,10 @@ export default function Login({ initialized, onAuthSuccess }) {
             </Form.Item>
           )}
           <Button block size="large" type="primary" htmlType="submit" loading={loading}>
-            {initialized ? '解锁 Vault' : '创建私人空间'}
+            {initialized ? '解锁 Vault' : '初始化 Vault'}
           </Button>
         </Form>
-        <div className="login-assurance">
-          <SafetyCertificateOutlined /> 仅你可访问 · 私人自部署
-        </div>
       </section>
-      <footer className="login-footer">A little space. Entirely yours.</footer>
     </main>
   );
 }

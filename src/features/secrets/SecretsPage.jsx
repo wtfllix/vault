@@ -9,19 +9,12 @@ import {
   EditOutlined,
   DeleteOutlined,
   CloseOutlined,
-  LockOutlined,
   DownloadOutlined
 } from '@ant-design/icons';
 import { useResource } from '../../hooks/useResource';
 import { request, mutate } from '../../services/api';
 import { quickCopyLabel, quickCopyValue, writeClipboard } from '../../services/clipboard';
-import {
-  EmptyState,
-  ErrorState,
-  Favorite,
-  confirmAction,
-  formatDate
-} from '../../components/Common';
+import { EmptyState, ErrorState, confirmAction, formatDate } from '../../components/Common';
 import { secretTypes, labels } from './types';
 import SecretEditor from './SecretEditor';
 export default function SecretsPage({ query, focusId }) {
@@ -45,7 +38,9 @@ export default function SecretsPage({ query, focusId }) {
     setPlaintext(null);
     setBusy(false);
   };
-  const select = (row) => {
+  const select = (row, record = true) => {
+    if (row && record)
+      request(`/secrets/${row.id}/metadata`).catch((e) => message.error(e.message));
     clear();
     setSelected(row);
     selectedRef.current = row?.id;
@@ -58,7 +53,7 @@ export default function SecretsPage({ query, focusId }) {
       let active = true;
       request(`/secrets/${focusId}/metadata`)
         .then((row) => {
-          if (active) select(row);
+          if (active) select(row, false);
         })
         .catch((e) => message.error(e.message));
       return () => {
@@ -150,19 +145,6 @@ export default function SecretsPage({ query, focusId }) {
       setEditor(structuredClone(row));
     }
   };
-  const favorite = async (row) => {
-    try {
-      const updated = await mutate(
-        `/secrets/${row.id}/favorite`,
-        { favorite: !row.favorite },
-        'PATCH'
-      );
-      if (selected?.id === row.id) setSelected(updated);
-      source.reload();
-    } catch (e) {
-      message.error(e.message);
-    }
-  };
   const tags = [...new Set(source.items.flatMap((r) => r.tags))];
   const remove = () =>
     confirmAction('删除这条密钥？', async () => {
@@ -240,14 +222,13 @@ export default function SecretsPage({ query, focusId }) {
             locale={{
               emptyText: (
                 <EmptyState
-                  title="为重要凭据留一个安全位置"
-                  description="密钥与备注加密存储，列表仅显示名称和分类。"
+                  title="暂无密钥"
                   action={
                     <Button
                       icon={<PlusOutlined />}
                       onClick={() => setEditor({ secret_type: 'apikey', data: {} })}
                     >
-                      添加第一条密钥
+                      添加密钥
                     </Button>
                   }
                 />
@@ -268,7 +249,10 @@ export default function SecretsPage({ query, focusId }) {
                     <button
                       aria-label={`查看 ${row.name}`}
                       className="text-button"
-                      onClick={() => select(row)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        select(row);
+                      }}
                     >
                       {row.name}
                       <small>{secretTypes[row.secret_type]?.label || row.secret_type}</small>
@@ -320,17 +304,9 @@ export default function SecretsPage({ query, focusId }) {
                     }}
                   />
                 )
-              },
-              {
-                title: '',
-                width: 48,
-                render: (_, row) => <Favorite value={row.favorite} onClick={() => favorite(row)} />
               }
             ]}
           />
-          <div className="list-footnote">
-            <LockOutlined /> 内容按需解密 · 显示 30 秒后自动隐藏
-          </div>
         </section>
         {selected && (
           <aside className="surface detail-panel" aria-label="密钥详情">
@@ -363,9 +339,6 @@ export default function SecretsPage({ query, focusId }) {
               </span>
             </div>
             <div className="sensitive-section">
-              <div className="section-label">
-                ENCRYPTED CONTENT <LockOutlined />
-              </div>
               {busy ? (
                 <Spin />
               ) : plaintext ? (
@@ -411,7 +384,6 @@ export default function SecretsPage({ query, focusId }) {
               ) : (
                 <div className="secret-locked">
                   <div className="masked-value">•••• •••• •••• ••••</div>
-                  <p>敏感内容尚未加载</p>
                   <div className="quick-copy-actions">
                     <Button
                       aria-label={`复制${quickCopyLabel(selected.secret_type)}`}

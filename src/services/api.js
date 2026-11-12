@@ -1,5 +1,4 @@
 let csrf = '';
-let reauthPromise = null;
 export const setCsrf = (value) => {
   csrf = value || '';
 };
@@ -10,16 +9,7 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
-export const reauthenticate = () => {
-  if (!reauthPromise)
-    reauthPromise = new Promise((resolve, reject) => {
-      window.dispatchEvent(new CustomEvent('vault:reauth', { detail: { resolve, reject } }));
-    }).finally(() => {
-      reauthPromise = null;
-    });
-  return reauthPromise;
-};
-export const request = async (path, { body, method = 'GET', signal, retry = true } = {}) => {
+export const request = async (path, { body, method = 'GET', signal } = {}) => {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: 'same-origin',
@@ -31,10 +21,6 @@ export const request = async (path, { body, method = 'GET', signal, retry = true
     ...(body !== undefined ? { body: JSON.stringify(body) } : {})
   });
   const data = await response.json().catch(() => null);
-  if (response.status === 428 && retry) {
-    await reauthenticate();
-    return request(path, { body, method, signal, retry: false });
-  }
   if (!response.ok) {
     if (response.status === 401 && !path.startsWith('/auth/'))
       window.dispatchEvent(new Event('vault:expired'));

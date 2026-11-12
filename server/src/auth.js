@@ -64,10 +64,6 @@ export const registerAuth = async (app, config, pool) => {
     )
       throw fail(403, '请求校验失败，请刷新页面');
   });
-  app.decorate('fresh', async (request) => {
-    if (Date.now() - new Date(request.session.verified_at).getTime() > config.reauthSeconds * 1000)
-      throw fail(428, '请重新验证主密码');
-  });
   const authenticated = { preHandler: [app.authenticate] };
   app.get('/api/auth/state', async () => ({
     initialized: Boolean(
@@ -163,19 +159,15 @@ export const registerAuth = async (app, config, pool) => {
     });
     return { ok: true };
   });
-  app.post(
-    '/api/auth/logout-all',
-    { preHandler: [app.authenticate, app.fresh] },
-    async (request, reply) => {
-      await transaction(
-        pool,
-        (client) => client.query('UPDATE sessions SET revoked_at=NOW() WHERE revoked_at IS NULL'),
-        72002001
-      );
-      reply.clearCookie(cookieName(config), { path: '/', secure: config.secureCookie });
-      return { ok: true };
-    }
-  );
+  app.post('/api/auth/logout-all', authenticated, async (request, reply) => {
+    await transaction(
+      pool,
+      (client) => client.query('UPDATE sessions SET revoked_at=NOW() WHERE revoked_at IS NULL'),
+      72002001
+    );
+    reply.clearCookie(cookieName(config), { path: '/', secure: config.secureCookie });
+    return { ok: true };
+  });
   app.post(
     '/api/auth/password',
     {

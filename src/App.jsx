@@ -65,7 +65,7 @@ export default function App() {
     return (
       <div className="boot-state">
         <Spin />
-        <p>正在打开私人空间</p>
+        <p>正在加载</p>
       </div>
     );
   return logged ? (

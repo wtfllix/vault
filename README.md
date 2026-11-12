@@ -56,6 +56,6 @@ pnpm test:ui
 
 ## 安全边界
 
-Session 存于 PostgreSQL，数据库仅存令牌哈希；Cookie 使用 HttpOnly、Secure、SameSite=Strict。写操作要求精确 Origin 和 CSRF token，退出立即撤销，改密撤销全部 Session。敏感操作要求近期重新验证主密码。
+Session 存于 PostgreSQL，数据库仅存令牌哈希；Cookie 使用 HttpOnly、Secure、SameSite=Strict。写操作要求精确 Origin 和 CSRF token，退出立即撤销，改密撤销全部 Session。默认登录保持 7 天，期间查看、复制和管理密钥不再弹出主密码验证。修改主密码时仍需提供当前密码。
 
 Notes 正文和 Secrets 内容/备注由服务端 AES-256-GCM 加密；名称、类型、标签、环境是可检索元数据，不能放凭据。Files 在 VPS 文件系统保存原始内容，应保护磁盘权限和备份。这是服务器端加密，非零知识保险箱。

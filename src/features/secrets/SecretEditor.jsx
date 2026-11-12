@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Form, Input, Modal, Select, Switch, message } from 'antd';
+import { Form, Input, Modal, Select, message } from 'antd';
 import { mutate } from '../../services/api';
 import { secretTypes, labels } from './types';
 export default function SecretEditor({ snapshot, onClose, onSaved }) {
@@ -45,7 +45,7 @@ export default function SecretEditor({ snapshot, onClose, onSaved }) {
         secret_type: type,
         tags: values.tags || [],
         environment: values.environment || '',
-        favorite: values.favorite || false,
+        favorite: snapshot.favorite || false,
         note: values.note || '',
         data,
         ...(snapshot.id ? { version: snapshot.version } : {})
@@ -78,7 +78,7 @@ export default function SecretEditor({ snapshot, onClose, onSaved }) {
       width={600}
       destroyOnClose
     >
-      <p className="muted">名称、标签和环境用于检索，请勿填写密码或凭据。</p>
+      <p className="muted">名称、标签、环境不加密。</p>
       <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
         <div className="form-two">
           <Form.Item
@@ -105,7 +105,6 @@ export default function SecretEditor({ snapshot, onClose, onSaved }) {
           </Form.Item>
         </div>
         <div className="encrypted-form">
-          <div className="eyebrow">ENCRYPTED FIELDS</div>
           {type === 'config_file' && (
             <label className="file-picker-label">
               替换配置文件
@@ -130,9 +129,6 @@ export default function SecretEditor({ snapshot, onClose, onSaved }) {
             <Input.TextArea maxLength={10000} rows={3} />
           </Form.Item>
         </div>
-        <Form.Item name="favorite" label="收藏" valuePropName="checked">
-          <Switch />
-        </Form.Item>
       </Form>
     </Modal>
   );

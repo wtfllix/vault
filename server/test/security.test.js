@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { loadConfig, normalizeLegacyKey } from '../src/settings.js';
 import { createEncryption } from '../src/encryption.js';
-import { hashSession, safeEqual, Semaphore, validName } from '../src/security.js';
+import { hashSession, safeEqual, Semaphore, validName, sessionCookie } from '../src/security.js';
 
 const key = crypto.randomBytes(32).toString('base64');
 const env = {
@@ -20,6 +20,25 @@ test('reject empty, placeholder and insecure config', () => {
   assert.throws(() => loadConfig({ ...env, APP_ORIGIN: 'http://vault.example.com' }));
   assert.throws(() => loadConfig({ ...env, BOOTSTRAP_TOKEN: 'short' }));
   assert.equal(loadConfig(env).secureCookie, true);
+});
+test('login cookies and default session limits persist for seven days', () => {
+  const config = loadConfig(env);
+  assert.equal(config.sessionSeconds, 7 * 24 * 60 * 60);
+  assert.equal(config.idleSeconds, 7 * 24 * 60 * 60);
+  assert.deepEqual(sessionCookie(config), {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 604800
+  });
+  const extended = loadConfig({
+    ...env,
+    SESSION_SECONDS: '2592000',
+    SESSION_IDLE_SECONDS: '2592000'
+  });
+  assert.equal(extended.sessionSeconds, 2592000);
+  assert.equal(extended.idleSeconds, 2592000);
 });
 test('old AES-GCM ciphertext and normalization remain readable; v2 resists tampering', () => {
   const legacyKey = normalizeLegacyKey('old private passphrase');

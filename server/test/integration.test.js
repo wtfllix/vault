@@ -89,11 +89,98 @@ test(
     const winner = race.find((r) => r.statusCode === 200);
     const rawCookie = winner.headers['set-cookie'];
     assert.match(rawCookie, /HttpOnly/);
+    assert.equal(Number(rawCookie.match(/Max-Age=(\d+)/)?.[1]), 604800);
     assert.match(rawCookie, /Secure/);
     assert.match(rawCookie, /SameSite=Strict/i);
     let cookie = rawCookie.split(';')[0];
     let csrf = winner.json().csrf;
     const auth = () => ({ cookie, 'x-csrf-token': csrf });
+    await t.test(
+      'Recent persists usage, ranks by recency and frequency, and returns metadata only',
+      async () => {
+        assert.equal((await send('GET', '/api/recent')).statusCode, 401);
+        assert.equal((await send('GET', '/api/recent', undefined, auth())).json().total, 0);
+        await send('GET', '/api/secrets', undefined, auth());
+        assert.equal((await send('GET', '/api/recent', undefined, auth())).json().total, 0);
+        await Promise.all(
+          Array.from({ length: 4 }, () => send('GET', '/api/secrets/1/metadata', undefined, auth()))
+        );
+        let recent = (await send('GET', '/api/recent', undefined, auth())).json();
+        assert.equal(recent.total, 1);
+        assert.equal(Number(recent.items[0].use_count), 1);
+        assert.equal(recent.items[0].module, 'secrets');
+        assert.equal(JSON.stringify(recent).includes('legacy-key-value'), false);
+        assert.equal('encrypted_data' in recent.items[0], false);
+        assert.equal('note' in recent.items[0], false);
+        const note = (
+          await send(
+            'POST',
+            '/api/notes',
+            {
+              title: 'Recent fixture',
+              language: 'text',
+              content: 'private recent body'
+            },
+            auth()
+          )
+        ).json();
+        await send('GET', `/api/notes/${note.id}`, undefined, auth());
+        await app.pool.query(
+          "UPDATE resource_usage SET use_count=100,last_opened_at=NOW()-INTERVAL '60 days' WHERE module='secrets'"
+        );
+        recent = (await send('GET', '/api/recent', undefined, auth())).json();
+        assert.equal(recent.items[0].id, note.id);
+        assert.equal(JSON.stringify(recent).includes('private recent body'), false);
+        await app.pool.query(
+          "UPDATE resource_usage SET use_count=10,last_opened_at=NOW()-INTERVAL '1 hour' WHERE module='secrets'"
+        );
+        recent = (await send('GET', '/api/recent', undefined, auth())).json();
+        assert.equal(recent.items[0].module, 'secrets');
+        const filtered = (
+          await send('GET', '/api/recent?module=notes&limit=1', undefined, auth())
+        ).json();
+        assert.equal(filtered.total, 1);
+        assert.equal(filtered.items[0].id, note.id);
+        const pastEnd = (await send('GET', '/api/recent?offset=100', undefined, auth())).json();
+        assert.equal(pastEnd.total, 2);
+        assert.deepEqual(pastEnd.items, []);
+        const before = JSON.stringify(
+          (await app.pool.query('SELECT * FROM resource_usage ORDER BY module')).rows
+        );
+        await send('GET', '/api/notes/00000000-0000-4000-8000-000000000000', undefined, auth());
+        await send('GET', '/api/secrets/1');
+        assert.equal(
+          JSON.stringify(
+            (await app.pool.query('SELECT * FROM resource_usage ORDER BY module')).rows
+          ),
+          before
+        );
+
+        assert.equal(
+          (await send('GET', '/api/recent?module=unknown', undefined, auth())).statusCode,
+          400
+        );
+        await send('DELETE', `/api/notes/${note.id}`, undefined, auth());
+        assert.equal(
+          (await send('GET', '/api/recent?module=notes', undefined, auth())).json().total,
+          0
+        );
+        await send('POST', `/api/notes/${note.id}/restore`, undefined, auth());
+        assert.equal(
+          (await send('GET', '/api/recent?module=notes', undefined, auth())).json().total,
+          1
+        );
+        await send('DELETE', `/api/notes/${note.id}`, undefined, auth());
+        await app.close();
+        app = await buildApp({ config, logger: false });
+        assert.equal((await send('GET', '/api/recent', undefined, auth())).json().total, 1);
+        await send('GET', '/api/secrets/1', undefined, auth());
+        assert.equal(
+          Number((await send('GET', '/api/recent', undefined, auth())).json().items[0].use_count),
+          11
+        );
+      }
+    );
     const migrated = await send('GET', '/api/secrets/1', undefined, auth());
     assert.equal(migrated.statusCode, 200);
     assert.deepEqual(migrated.json().data, oldData);
@@ -247,16 +334,52 @@ test(
     const newLogin = await send('POST', '/api/auth/login', { password: 'changed-test-password' });
     cookie = newLogin.headers['set-cookie'].split(';')[0];
     csrf = newLogin.json().csrf;
+    // Simulate reopening the same device nearly seven days after login.
+    // Age every relevant timestamp; leave only one hour of the configured lifetime.
     await app.pool.query(
-      "UPDATE sessions SET verified_at=NOW()-INTERVAL '10 minutes' WHERE revoked_at IS NULL"
+      `UPDATE sessions SET created_at=NOW()-INTERVAL '6 days 23 hours',
+       verified_at=NOW()-INTERVAL '6 days 23 hours',
+       last_seen_at=NOW()-INTERVAL '6 days 23 hours',
+       expires_at=NOW()-INTERVAL '6 days 23 hours'+$1*INTERVAL '1 second'
+       WHERE revoked_at IS NULL`,
+      [config.sessionSeconds]
     );
-    assert.equal((await send('GET', '/api/secrets/1', undefined, auth())).statusCode, 428);
+    await app.close();
+    app = await buildApp({ config, logger: false });
+    assert.equal((await send('GET', '/api/auth/session', undefined, auth())).statusCode, 200);
+    assert.equal((await send('GET', '/api/secrets/1', undefined, auth())).statusCode, 200);
+    const weekSecret = await send(
+      'POST',
+      '/api/secrets',
+      {
+        secret_type: 'apikey',
+        name: 'week session fixture',
+        data: { key: 'week-private-key' }
+      },
+      auth()
+    );
+    assert.equal(weekSecret.statusCode, 200);
+    const weekId = weekSecret.json().id;
+    const weekUpdate = await send(
+      'PUT',
+      `/api/secrets/${weekId}`,
+      {
+        secret_type: 'apikey',
+        name: 'week session fixture',
+        data: { key: 'week-updated-key' },
+        version: weekSecret.json().version
+      },
+      auth()
+    );
+    assert.equal(weekUpdate.statusCode, 200);
     assert.equal(
-      (await send('POST', '/api/auth/reauth', { password: 'changed-test-password' }, auth()))
-        .statusCode,
+      (await send('DELETE', `/api/secrets/${weekId}`, undefined, auth())).statusCode,
       200
     );
-    assert.equal((await send('GET', '/api/secrets/1', undefined, auth())).statusCode, 200);
+    assert.equal(
+      (await send('POST', `/api/secrets/${weekId}/restore`, {}, auth())).statusCode,
+      200
+    );
     const heartbeatBefore = (
       await app.pool.query(
         'SELECT last_seen_at::text AS value FROM sessions WHERE revoked_at IS NULL ORDER BY created_at DESC LIMIT 1'
@@ -320,8 +443,12 @@ test(
     cookie = expiring.headers['set-cookie'].split(';')[0];
     csrf = expiring.json().csrf;
     await app.pool.query(
-      "UPDATE sessions SET last_seen_at=NOW()-INTERVAL '1 day' WHERE revoked_at IS NULL"
+      "UPDATE sessions SET last_seen_at=NOW()-INTERVAL '7 days 1 second' WHERE revoked_at IS NULL"
     );
     assert.equal((await send('GET', '/api/auth/session', undefined, auth())).statusCode, 401);
+    await app.pool.query(
+      "UPDATE sessions SET last_seen_at=NOW(),expires_at=NOW()-INTERVAL '1 second' WHERE revoked_at IS NULL"
+    );
+    assert.equal((await send('GET', '/api/secrets/1', undefined, auth())).statusCode, 401);
   }
 );

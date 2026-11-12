@@ -77,3 +77,18 @@ docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$P
 ## 依赖与发布
 
 Docker 使用 `pnpm install --frozen-lockfile`。CI 先进行单元、真实 PostgreSQL 和浏览器测试，再构建镜像。镜像部署建议固定 digest；GHCR 配置示例不再默认拉取旧 master-latest。
+
+## 七天免重复验证
+
+新登录默认有效 7 天，关闭浏览器、再次打开应用或重启 API 后，只要 Cookie 与数据库会话仍有效，就不需要再次输入主密码。查看、复制、编辑、删除和恢复密钥、全部设备退出不再触发五分钟主密码复验；修改主密码仍需填写当前密码。
+
+源码 Compose 和 GHCR Compose 的默认值均已更新。如果 VPS 的 `.env` 已显式配置过旧期限，需将两项一起更新：
+
+```dotenv
+SESSION_SECONDS=604800
+SESSION_IDLE_SECONDS=604800
+```
+
+`SESSION_SECONDS` 是从登录开始计算的绝对有效期，`SESSION_IDLE_SECONDS` 是无实际使用时的闲置期限；实际期限取两者的较早者。按上述配置，登录满七天后重新登录，不会因页面的后台心跳无限续期。可显式配置更长周期，最大支持 30 天（2592000 秒）。
+
+更新镜像与配置并重建 API 容器后，下次登录签发的 Cookie 和会话采用新期限。已经签发的 Cookie/会话保留原到期时间；不会自动延长旧会话，更不会恢复已撤销或已过期的登录。接口持续校验 Session、Origin 与 CSRF；退出、全部设备退出和修改主密码后立即撤销会话。无需为此改动数据库结构或加密密钥。

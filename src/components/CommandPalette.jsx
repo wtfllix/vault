@@ -137,7 +137,6 @@ export default function CommandPalette({ open, onClose, navigate, onLock }) {
       <div className="command-footer">
         <span>↑ ↓ 选择</span>
         <span>↵ 打开</span>
-        <span>搜索仅包含名称与标题</span>
       </div>
     </Modal>
   );

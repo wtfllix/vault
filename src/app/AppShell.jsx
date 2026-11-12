@@ -1,10 +1,10 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { Button, Input, Modal, Form, message } from 'antd';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { Button, Input, message } from 'antd';
 import {
   FolderOutlined,
   FileTextOutlined,
   KeyOutlined,
-  StarOutlined,
+  HistoryOutlined,
   DeleteOutlined,
   SettingOutlined,
   SearchOutlined,
@@ -16,26 +16,24 @@ const FilesPage = lazy(() => import('../features/files/FilesPage'));
 const NotesPage = lazy(() => import('../features/notes/NotesPage'));
 const SecretsPage = lazy(() => import('../features/secrets/SecretsPage'));
 const CollectionsPage = lazy(() => import('./CollectionsPage'));
+const RecentPage = lazy(() => import('./RecentPage'));
 const SettingsPage = lazy(() => import('./SettingsPage'));
 const CommandPalette = lazy(() => import('../components/CommandPalette'));
 import { request, mutate } from '../services/api';
 import { formatBytes } from '../components/Common';
 const navigation = [
-  { id: 'files', label: 'Files', icon: <FolderOutlined />, caption: '私人文件' },
-  { id: 'notes', label: 'Notes', icon: <FileTextOutlined />, caption: '想法与代码' },
-  { id: 'secrets', label: 'Secrets', icon: <KeyOutlined />, caption: '加密保险箱' },
-  { id: 'favorites', label: 'Favorites', icon: <StarOutlined /> },
+  { id: 'files', label: 'Files', icon: <FolderOutlined />, searchLabel: '文件' },
+  { id: 'notes', label: 'Notes', icon: <FileTextOutlined />, searchLabel: '笔记' },
+  { id: 'secrets', label: 'Secrets', icon: <KeyOutlined />, searchLabel: '密钥' },
+  { id: 'recent', label: 'Recent', icon: <HistoryOutlined /> },
   { id: 'trash', label: 'Trash', icon: <DeleteOutlined /> },
   { id: 'settings', label: 'Settings', icon: <SettingOutlined /> }
 ];
 const route = () => {
-  const [module, id] = location.hash.replace(/^#\/?/, '').split('/');
+  const [rawModule, id] = location.hash.replace(/^#\/?/, '').split('/');
+  const module = rawModule === 'favorites' ? 'recent' : rawModule;
   return {
-    module: navigation.some((n) => n.id === module)
-      ? module
-      : navigation.some((n) => n.id === localStorage.getItem('vault-last-module'))
-        ? localStorage.getItem('vault-last-module')
-        : 'files',
+    module: navigation.some((n) => n.id === module) ? module : 'recent',
     id
   };
 };
@@ -45,11 +43,6 @@ export default function AppShell({ onLock }) {
   const [palette, setPalette] = useState(false);
   const [sidebar, setSidebar] = useState(false);
   const [storage, setStorage] = useState(null);
-  const [reauth, setReauth] = useState(null);
-  const [reauthBusy, setReauthBusy] = useState(false);
-  const [reauthError, setReauthError] = useState('');
-  const [reauthForm] = Form.useForm();
-  const reauthRef = useRef(null);
   const navigate = async (module, id = '') => {
     const waits = [];
     window.dispatchEvent(new CustomEvent('vault:beforeNavigate', { detail: { waits } }));
@@ -61,7 +54,6 @@ export default function AppShell({ onLock }) {
     setQuery('');
     setSidebar(false);
     setPalette(false);
-    localStorage.setItem('vault-last-module', module);
   };
   const lock = async () => {
     const waits = [];
@@ -83,14 +75,7 @@ export default function AppShell({ onLock }) {
       setCurrent(route());
       setQuery('');
     };
-    const needAuth = (event) => {
-      reauthRef.current = event.detail;
-      setReauth(event.detail);
-      setReauthError('');
-      reauthForm.resetFields();
-    };
     window.addEventListener('hashchange', change);
-    window.addEventListener('vault:reauth', needAuth);
     window.addEventListener('vault:storage', refreshStorage);
     refreshStorage();
     const timer = setInterval(
@@ -103,9 +88,7 @@ export default function AppShell({ onLock }) {
     return () => {
       clearInterval(timer);
       window.removeEventListener('hashchange', change);
-      window.removeEventListener('vault:reauth', needAuth);
       window.removeEventListener('vault:storage', refreshStorage);
-      reauthRef.current?.reject(new Error('验证已取消'));
     };
   }, []);
   useEffect(() => {
@@ -147,7 +130,7 @@ export default function AppShell({ onLock }) {
         />
       )}
       <aside className={`sidebar ${sidebar ? 'is-open' : ''}`}>
-        <button className="brand" onClick={() => navigate('files')}>
+        <button className="brand" onClick={() => navigate('recent')}>
           <span className="vault-mark">V</span>
           <span>Vault</span>
           <span className="version">2.0</span>
@@ -157,7 +140,6 @@ export default function AppShell({ onLock }) {
           <span>搜索与命令</span>
           <kbd>⌘ K</kbd>
         </button>
-        <div className="nav-label">WORKSPACE</div>
         <nav aria-label="主导航">
           {navigation.map((n, i) => (
             <React.Fragment key={n.id}>
@@ -193,11 +175,8 @@ export default function AppShell({ onLock }) {
               : '正在读取磁盘空间'}
           </small>
           <button className="owner-button" onClick={lock}>
-            <span className="avatar">L</span>
-            <span>
-              Personal space<small>只有你，恰到好处。</small>
-            </span>
             <LockOutlined />
+            <span>锁定 Vault</span>
           </button>
         </div>
       </aside>
@@ -211,16 +190,13 @@ export default function AppShell({ onLock }) {
               aria-label="打开导航"
               onClick={() => setSidebar((v) => !v)}
             />
-            <span className="topbar-workspace">私人空间</span>
+            <span className="topbar-workspace">Vault</span>
             <span className="path-separator">/</span>
             <span>
               {item.icon} {item.label}
             </span>
           </div>
           <div className="topbar-right">
-            <span className="private-badge">
-              <span /> Private
-            </span>
             <Button
               type="text"
               icon={<ThunderboltOutlined />}
@@ -234,11 +210,7 @@ export default function AppShell({ onLock }) {
             {['files', 'notes', 'secrets'].includes(current.module) && (
               <div className="workspace-heading">
                 <div>
-                  <div className="eyebrow">YOUR PERSONAL WORKSPACE</div>
-                  <h1>
-                    {item.label}
-                    <span>{item.caption}</span>
-                  </h1>
+                  <h1>{item.label}</h1>
                 </div>
                 <Input
                   className="module-search"
@@ -246,7 +218,7 @@ export default function AppShell({ onLock }) {
                   prefix={<SearchOutlined />}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={`搜索${item.caption}`}
+                  placeholder={`搜索${item.searchLabel}`}
                   aria-label={`搜索 ${item.label}`}
                 />
               </div>
@@ -254,9 +226,8 @@ export default function AppShell({ onLock }) {
             {current.module === 'files' && <FilesPage query={query} focusId={current.id} />}
             {current.module === 'notes' && <NotesPage query={query} focusId={current.id} />}
             {current.module === 'secrets' && <SecretsPage query={query} focusId={current.id} />}
-            {['favorites', 'trash'].includes(current.module) && (
-              <CollectionsPage mode={current.module} navigate={navigate} />
-            )}
+            {current.module === 'recent' && <RecentPage navigate={navigate} />}
+            {current.module === 'trash' && <CollectionsPage />}
             {current.module === 'settings' && <SettingsPage onLock={onLock} />}
           </Suspense>
         </main>
@@ -284,48 +255,6 @@ export default function AppShell({ onLock }) {
           />
         )}
       </Suspense>
-      <Modal
-        title="验证主密码"
-        open={Boolean(reauth)}
-        okText="验证"
-        cancelText="取消"
-        confirmLoading={reauthBusy}
-        onOk={() => reauthForm.submit()}
-        onCancel={() => {
-          reauthRef.current?.reject(new Error('验证已取消'));
-          reauthRef.current = null;
-          setReauth(null);
-        }}
-        destroyOnClose
-      >
-        <p className="muted">为了保护敏感内容，请重新确认身份。</p>
-        {reauthError && (
-          <p role="alert" className="error-text">
-            {reauthError}
-          </p>
-        )}
-        <Form
-          form={reauthForm}
-          onFinish={async (values) => {
-            if (reauthBusy) return;
-            setReauthBusy(true);
-            try {
-              await mutate('/auth/reauth', values);
-              reauthRef.current?.resolve();
-              reauthRef.current = null;
-              setReauth(null);
-            } catch (e) {
-              setReauthError(e.message);
-            } finally {
-              setReauthBusy(false);
-            }
-          }}
-        >
-          <Form.Item name="password" rules={[{ required: true }]}>
-            <Input.Password autoFocus autoComplete="current-password" placeholder="主密码" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 }

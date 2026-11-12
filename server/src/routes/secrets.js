@@ -4,7 +4,6 @@ const columns =
   'id,secret_type,name,tags,environment,favorite,version,created_at,updated_at,deleted_at';
 export const registerSecrets = async (app, { pool, encryption }) => {
   const auth = [app.authenticate];
-  const secure = [app.authenticate, app.fresh];
   app.get(
     '/api/secrets',
     {
@@ -58,21 +57,17 @@ export const registerSecrets = async (app, { pool, encryption }) => {
       return r.rows[0];
     }
   );
-  app.post(
-    '/api/secrets',
-    { preHandler: secure, schema: { body: secretBody } },
-    async (request) => {
-      const b = request.body;
-      const encrypted = encryption.encrypt({ vaultEnvelope: 2, data: b.data, note: b.note || '' });
-      const r = await pool.query(
-        `INSERT INTO secrets(secret_type,name,encrypted_data,tags,environment,favorite)
+  app.post('/api/secrets', { preHandler: auth, schema: { body: secretBody } }, async (request) => {
+    const b = request.body;
+    const encrypted = encryption.encrypt({ vaultEnvelope: 2, data: b.data, note: b.note || '' });
+    const r = await pool.query(
+      `INSERT INTO secrets(secret_type,name,encrypted_data,tags,environment,favorite)
       VALUES($1,$2,$3,$4,$5,$6) RETURNING ${columns}`,
-        [b.secret_type, b.name, encrypted, b.tags || [], b.environment || '', b.favorite || false]
-      );
-      return r.rows[0];
-    }
-  );
-  app.get('/api/secrets/:id', { preHandler: secure, schema: params(secretId) }, async (request) => {
+      [b.secret_type, b.name, encrypted, b.tags || [], b.environment || '', b.favorite || false]
+    );
+    return r.rows[0];
+  });
+  app.get('/api/secrets/:id', { preHandler: auth, schema: params(secretId) }, async (request) => {
     const r = await pool.query(
       `SELECT ${columns},encrypted_data FROM secrets WHERE id=$1 AND deleted_at IS NULL`,
       [request.params.id]
@@ -90,7 +85,7 @@ export const registerSecrets = async (app, { pool, encryption }) => {
   app.put(
     '/api/secrets/:id',
     {
-      preHandler: secure,
+      preHandler: auth,
       schema: {
         ...params(secretId),
         body: { ...secretBody, required: [...secretBody.required, 'version'] }
@@ -133,7 +128,7 @@ export const registerSecrets = async (app, { pool, encryption }) => {
   );
   app.delete(
     '/api/secrets/:id',
-    { preHandler: secure, schema: params(secretId) },
+    { preHandler: auth, schema: params(secretId) },
     async (request) => {
       const r = await pool.query(
         'UPDATE secrets SET deleted_at=NOW(),version=version+1,updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL',
@@ -145,7 +140,7 @@ export const registerSecrets = async (app, { pool, encryption }) => {
   );
   app.post(
     '/api/secrets/:id/restore',
-    { preHandler: secure, schema: params(secretId) },
+    { preHandler: auth, schema: params(secretId) },
     async (request) => {
       const r = await pool.query(
         'UPDATE secrets SET deleted_at=NULL,version=version+1,updated_at=NOW() WHERE id=$1 AND deleted_at IS NOT NULL',

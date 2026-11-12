@@ -159,22 +159,12 @@ kbd {
   gap: 8px;
   padding: 0 10px;
   font-size: 12px;
-  margin: 2px 4px 28px;
+  margin: 2px 4px 16px;
 }
 .sidebar-search kbd {
   margin-left: auto;
   font-size: 10px;
   white-space: nowrap;
-}
-.nav-label,
-.eyebrow {
-  font: 10px/1.5 var(--font-mono);
-  letter-spacing: 1.4px;
-  color: var(--text-secondary);
-}
-.nav-label {
-  padding: 0 12px;
-  margin-bottom: 10px;
 }
 .nav-item {
   height: 40px;
@@ -255,25 +245,9 @@ kbd {
   text-align: left;
   font-size: 12px;
 }
-.owner-button small {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
-}
 .owner-button > .anticon {
-  margin-left: auto;
+  margin-left: 0;
   color: var(--text-secondary);
-}
-.avatar {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--accent-hover);
-  font-size: 12px;
 }
 .main-shell {
   margin-left: 228px;
@@ -307,19 +281,6 @@ kbd {
 .topbar-path .anticon {
   margin-right: 4px;
 }
-.private-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  font: 11px var(--font-mono);
-}
-.private-badge > span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--success);
-}
 .menu-toggle.ant-btn {
   display: none;
 }
@@ -334,19 +295,8 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  min-height: 66px;
+  min-height: 44px;
   margin-bottom: 26px;
-}
-.workspace-heading .eyebrow {
-  margin-bottom: 8px;
-  font-size: 9px;
-}
-.workspace-heading h1 > span {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text-secondary);
-  margin-left: 14px;
 }
 .module-search {
   max-width: 250px;
@@ -373,11 +323,6 @@ kbd {
   font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
-}
-.toolbar-hint {
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-left: 12px;
 }
 .surface {
   background: var(--bg-surface);
@@ -470,12 +415,15 @@ kbd {
   max-width: 100%;
   white-space: normal;
 }
-.favorite.ant-btn {
-  color: var(--text-secondary);
+.recent-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  text-align: left;
 }
-.favorite.active.ant-btn,
-.star-color {
-  color: var(--warning);
+.recent-name span:last-child {
+  overflow-wrap: anywhere;
 }
 .list-footnote {
   border-top: 1px solid var(--border-default);
@@ -486,9 +434,6 @@ kbd {
   padding: 12px 16px;
   color: var(--text-secondary);
   font-size: 10px;
-}
-.list-footnote > .anticon {
-  font-size: 11px;
 }
 .empty-state {
   padding: 62px 16px;
@@ -597,11 +542,6 @@ kbd {
   letter-spacing: 1px;
   color: var(--text-secondary);
 }
-.secret-locked p {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin: 12px 0 18px;
-}
 .reveal-warning {
   font-size: 10px;
   color: var(--warning);
@@ -666,9 +606,6 @@ kbd {
   border: 1px solid var(--border-default);
   border-radius: 8px;
   margin-bottom: 16px;
-}
-.encrypted-form .eyebrow {
-  margin-bottom: 18px;
 }
 .encrypted-form .ant-form-item:last-child {
   margin-bottom: 0;
@@ -906,24 +843,6 @@ kbd {
   letter-spacing: -0.5px;
   margin-bottom: 12px;
 }
-.notes-welcome p {
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.9;
-  margin-bottom: 24px;
-}
-.notes-welcome > small {
-  font: 10px var(--font-mono);
-  margin-top: 30px;
-  letter-spacing: 0.5px;
-}
-.welcome-line {
-  width: 36px;
-  height: 2px;
-  background: var(--accent);
-  margin-bottom: 36px;
-}
 .note-editor-panel {
   display: flex;
   flex-direction: column;
@@ -1098,9 +1017,6 @@ kbd {
 .settings-card {
   padding: 24px;
 }
-.settings-card .eyebrow {
-  margin-bottom: 12px;
-}
 .settings-card h2 {
   margin-bottom: 8px;
 }
@@ -1226,32 +1142,10 @@ kbd {
 }
 .login-box h1 {
   font-size: 23px;
-  margin-bottom: 10px;
-}
-.login-box > p {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.9;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 .login-box > .ant-alert {
   margin-bottom: 20px;
-}
-.login-assurance {
-  text-align: center;
-  font-size: 10px;
-  color: var(--text-secondary);
-  margin-top: 24px;
-}
-.login-assurance > .anticon {
-  margin-right: 5px;
-  color: var(--success);
-}
-.login-footer {
-  margin-top: 30px;
-  font: 11px var(--font-mono);
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
 }
 .boot-state {
   min-height: 100dvh;
@@ -1352,9 +1246,6 @@ kbd {
   .notes-layout {
     grid-template-columns: 210px minmax(0, 1fr);
   }
-  .workspace-heading h1 > span {
-    display: none;
-  }
 }
 @media (max-width: 899px) {
   .sidebar {
@@ -1406,9 +1297,6 @@ kbd {
   .settings-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .workspace-heading h1 > span {
-    display: none;
-  }
   .module-search {
     max-width: 230px;
   }
@@ -1436,9 +1324,6 @@ kbd {
     gap: 12px;
     flex-wrap: wrap;
   }
-  .workspace-heading .eyebrow {
-    display: none;
-  }
   .workspace-heading h1 {
     font-size: 23px;
   }
@@ -1464,8 +1349,7 @@ kbd {
   .module-toolbar .result-count {
     display: none;
   }
-  .desktop-label,
-  .toolbar-hint {
+  .desktop-label {
     display: none;
   }
   .file-path {
@@ -1689,10 +1573,20 @@ kbd {
     scroll-behavior: auto !important;
   }
 }
-
 .quick-copy-actions {
   display: flex;
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 599px) {
+  .recent-name {
+    min-height: 44px;
+  }
+  .workspace-recent .ant-segmented-item-label {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }

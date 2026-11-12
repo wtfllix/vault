@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button, Empty, Modal, Input, Form, message } from 'antd';
-import { StarFilled, StarOutlined } from '@ant-design/icons';
 export const formatBytes = (value) => {
   const n = Number(value) || 0;
   return n < 1024
@@ -36,25 +35,13 @@ export const EmptyState = ({ title, description, action }) => (
       description={
         <>
           <strong>{title}</strong>
-          <p>{description}</p>
+          {description && <p>{description}</p>}
         </>
       }
     >
       {action}
     </Empty>
   </div>
-);
-export const Favorite = ({ value, onClick }) => (
-  <Button
-    type="text"
-    className={value ? 'favorite active' : 'favorite'}
-    aria-label={value ? '取消收藏' : '收藏'}
-    icon={value ? <StarFilled /> : <StarOutlined />}
-    onClick={(event) => {
-      event.stopPropagation();
-      onClick();
-    }}
-  />
 );
 export const confirmAction = (title, action) =>
   Modal.confirm({

@@ -21,7 +21,10 @@ test('desktop: files persist, authenticated native download supports Range, note
   page,
   context
 }) => {
+  await page.addInitScript(() => localStorage.setItem('vault-last-module', 'files'));
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Recent', exact: true })).toBeVisible();
+  await page.locator('.sidebar').getByRole('button', { name: 'Files', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Files' })).toBeVisible();
   const file = {
     name: 'range-fixture.txt',
@@ -98,7 +101,7 @@ test('desktop: files persist, authenticated native download supports Range, note
   expect(secretCalls.length).toBe(1);
   secretCalls.length = 0;
   await page.getByRole('button', { name: '查看 Production API', exact: true }).click();
-  await expect(page.getByText('敏感内容尚未加载')).toBeVisible();
+  await expect(page.locator('.secret-locked')).toBeVisible();
   expect(secretCalls.length).toBe(0);
   await page.evaluate(() => navigator.clipboard.writeText('before-copy'));
   await page
@@ -108,7 +111,7 @@ test('desktop: files persist, authenticated native download supports Range, note
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe('super-private-test-key');
-  await expect(page.getByText('敏感内容尚未加载')).toBeVisible();
+  await expect(page.locator('.secret-locked')).toBeVisible();
   expect(await page.locator('body').innerText()).not.toContain('super-private-test-key');
   await page.getByRole('button', { name: '显示内容', exact: true }).click();
   await expect(
@@ -270,4 +273,124 @@ test('offline save failure retains an encrypted recoverable draft', async ({ pag
     .poll(async () => (await (await context.request.get(`/api/notes/${note.id}`)).json()).content)
     .toBe('unsaved-private-offline-content');
   await expect(page.locator('.save-state')).toHaveText('Saved');
+});
+
+test('Recent replaces favorites, persists actual opens and navigates across modules on desktop and mobile', async ({
+  page,
+  context
+}) => {
+  const headers = { Origin: origin, 'x-csrf-token': csrf };
+  const note = await (
+    await context.request.post('/api/notes', {
+      headers,
+      data: { title: 'Recent note fixture', language: 'text', content: 'recent confidential body' }
+    })
+  ).json();
+  const secret = await (
+    await context.request.post('/api/secrets', {
+      headers,
+      data: {
+        name: 'Recent secret fixture',
+        secret_type: 'apikey',
+        data: { key: 'recent confidential key' }
+      }
+    })
+  ).json();
+  const folder = await (
+    await context.request.post('/api/files/folders', {
+      headers,
+      data: { name: 'Recent folder fixture', parent_id: null }
+    })
+  ).json();
+  await page.goto('/#/files');
+  await expect(page.getByRole('button', { name: /Favorites|Favourite|收藏/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Recent folder fixture', exact: true }).click();
+  await expect
+    .poll(async () =>
+      (await (await context.request.get('/api/recent?module=files')).json()).items.some(
+        (r) => r.id === folder.id
+      )
+    )
+    .toBe(true);
+  await page.locator('.sidebar').getByRole('button', { name: 'Notes', exact: true }).click();
+  await page.getByRole('button', { name: /Recent note fixture/ }).click();
+  await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('Recent note fixture');
+  await page.locator('.sidebar').getByRole('button', { name: 'Secrets', exact: true }).click();
+  await page.getByRole('button', { name: '查看 Recent secret fixture', exact: true }).click();
+  await expect(page.locator('.secret-locked')).toBeVisible();
+  await expect
+    .poll(async () =>
+      (await (await context.request.get('/api/recent?module=secrets')).json()).items.some(
+        (r) => r.id === String(secret.id)
+      )
+    )
+    .toBe(true);
+  await page.locator('.sidebar').getByRole('button', { name: 'Recent', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Recent', exact: true })).toBeVisible();
+  for (const title of ['Recent note fixture', 'Recent secret fixture', 'Recent folder fixture']) {
+    await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
+  }
+  expect(await page.locator('body').innerText()).not.toMatch(/recent confidential/);
+  await page.reload();
+  await page.getByRole('radiogroup').getByText('Notes', { exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Recent folder fixture', exact: true })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Recent note fixture', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('Recent note fixture');
+  await page.locator('.brand').click();
+  await expect(page.getByRole('heading', { name: 'Recent', exact: true })).toBeVisible();
+  await page.goto('/#/favorites');
+  await expect(page.getByRole('heading', { name: 'Recent', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: '打开导航', exact: true }).click();
+  await page.locator('.sidebar').getByRole('button', { name: 'Recent', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Recent secret fixture', exact: true })
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+  ).toBeTruthy();
+  await page.screenshot({
+    path: 'artifacts/vault-recent-mobile.png',
+    fullPage: true,
+    animations: 'disabled'
+  });
+  await page.getByRole('button', { name: 'Recent secret fixture', exact: true }).click();
+  await expect(page.locator('.secret-locked')).toBeVisible();
+});
+
+test('same device reopens with a persistent seven-day login and no password prompt for secrets', async ({
+  browser
+}) => {
+  const first = await browser.newContext({ storageState: '.tmp/auth.json' });
+  let reopened;
+  try {
+    const firstPage = await first.newPage();
+    await firstPage.goto(origin);
+    await expect(firstPage.getByRole('heading', { name: 'Recent', exact: true })).toBeVisible();
+    const saved = await first.storageState();
+    const cookie = saved.cookies.find((item) => item.name === 'vault_dev_session');
+    expect(cookie?.expires).toBeGreaterThan(Date.now() / 1000 + 6 * 86400);
+    await first.close();
+    reopened = await browser.newContext({ storageState: saved });
+    const page = await reopened.newPage();
+    const passwordRequests = [];
+    page.on('request', (request) => {
+      if (/\/api\/auth\/(login|reauth)$/.test(request.url()))
+        passwordRequests.push(request.method());
+    });
+    await page.goto(`${origin}/#/secrets`);
+    await page.getByRole('button', { name: '查看 Production API', exact: true }).click();
+    await expect(page.locator('.secret-locked')).toBeVisible();
+    await page.getByRole('button', { name: '显示内容', exact: true }).click();
+    await expect(
+      page.locator('.secret-field pre').filter({ hasText: 'super-private-test-key' })
+    ).toBeVisible();
+    await expect(page.getByRole('dialog', { name: '验证主密码', exact: true })).toHaveCount(0);
+    expect(passwordRequests).toHaveLength(0);
+  } finally {
+    await first.close();
+    await reopened?.close();
+  }
 });

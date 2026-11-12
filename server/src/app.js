@@ -8,6 +8,7 @@ import { registerAuth } from './auth.js';
 import { registerSecrets } from './routes/secrets.js';
 import { registerFiles } from './routes/files.js';
 import { registerNotes } from './routes/notes.js';
+import { registerRecent } from './routes/recent.js';
 import { createStorage } from './storage.js';
 import { fail } from './security.js';
 
@@ -94,6 +95,7 @@ export const buildApp = async ({
     await migrate(pool, encryption);
     const storage = await createStorage(config);
     await registerAuth(app, config, pool);
+    await registerRecent(app, { pool });
     await registerSecrets(app, { pool, encryption });
     await registerFiles(app, { pool, storage, config });
     await registerNotes(app, { pool, encryption });

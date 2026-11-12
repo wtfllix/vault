@@ -78,9 +78,8 @@ export const loadConfig = (env = process.env) => {
       Number.MAX_SAFE_INTEGER
     ),
     reserveBytes: integer(env, 'DISK_RESERVE_BYTES', 256 * 1024 ** 2, 0, Number.MAX_SAFE_INTEGER),
-    sessionSeconds: integer(env, 'SESSION_SECONDS', 86400, 300, 604800),
-    idleSeconds: integer(env, 'SESSION_IDLE_SECONDS', 1800, 60, 86400),
-    reauthSeconds: 300,
+    sessionSeconds: integer(env, 'SESSION_SECONDS', 604800, 300, 2592000),
+    idleSeconds: integer(env, 'SESSION_IDLE_SECONDS', 604800, 60, 2592000),
     argon2MemoryCost: integer(env, 'ARGON2_MEMORY_COST', 19456, 19456, 262144),
     argon2TimeCost: integer(env, 'ARGON2_TIME_COST', 2, 2, 10),
     argon2Parallelism: 1

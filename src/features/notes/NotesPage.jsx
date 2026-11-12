@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Spin, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, StarFilled } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useResource, useDetail } from '../../hooks/useResource';
 import { mutate } from '../../services/api';
 import { EmptyState, ErrorState, formatDate } from '../../components/Common';
@@ -50,7 +50,6 @@ export default function NotesPage({ query, focusId }) {
       <div className="module-toolbar">
         <div className="toolbar-group">
           <span className="result-count">{source.total} 篇笔记</span>
-          <span className="toolbar-hint">为想法留一页空白</span>
         </div>
         <Button
           aria-label="新建笔记"
@@ -65,7 +64,7 @@ export default function NotesPage({ query, focusId }) {
       <div className={`notes-layout ${selected ? 'note-open' : ''}`}>
         <aside className="surface note-list">
           <div className="note-list-header">
-            <span>RECENT NOTES</span>
+            <span>笔记</span>
             <FileTextOutlined />
           </div>
           <ErrorState error={source.error} retry={source.reload} />
@@ -81,7 +80,6 @@ export default function NotesPage({ query, focusId }) {
               <div>
                 <FileTextOutlined />
                 <strong>{note.title}</strong>
-                {note.favorite && <StarFilled className="star-color" />}
               </div>
               <small>
                 <span>{note.language}</span>
@@ -89,9 +87,7 @@ export default function NotesPage({ query, focusId }) {
               </small>
             </button>
           ))}
-          {!source.loading && !source.items.length && (
-            <EmptyState title="这里还很安静" description="新建笔记，记下一个想法。" />
-          )}
+          {!source.loading && !source.items.length && <EmptyState title="暂无笔记" />}
           {source.total > 50 && (
             <div className="grid-pagination">
               <Button size="small" disabled={page === 1} onClick={() => setPage((n) => n - 1)}>
@@ -132,18 +128,11 @@ export default function NotesPage({ query, focusId }) {
           </>
         ) : (
           <div className="surface notes-welcome">
-            <div className="welcome-line" />
             <FileTextOutlined />
-            <h2>A place for your next idea.</h2>
-            <p>
-              代码片段、临时想法、日常记录。
-              <br />
-              轻一点，写下来。
-            </p>
+            <h2>选择笔记</h2>
             <Button icon={<PlusOutlined />} onClick={create}>
-              写一篇笔记
+              创建笔记
             </Button>
-            <small>Markdown · Code · Plain Text</small>
           </div>
         )}
       </div>

@@ -25,7 +25,6 @@ import { request, mutate, upload, downloadUrl } from '../../services/api';
 import {
   EmptyState,
   ErrorState,
-  Favorite,
   RenameDialog,
   confirmAction,
   formatBytes,
@@ -165,15 +164,6 @@ export default function FilesPage({ query, focusId }) {
       await sendUpload(entry);
     } finally {
       uploadGuard.current = false;
-    }
-  };
-  const favorite = async (row) => {
-    try {
-      await mutate(`/files/${row.id}`, { favorite: !row.favorite }, 'PATCH');
-      source.reload();
-      if (selected === row.id) detail.reload();
-    } catch (e) {
-      message.error(e.message);
     }
   };
   const remove = (row) =>
@@ -331,7 +321,6 @@ export default function FilesPage({ query, focusId }) {
               <div className="drop-overlay">
                 <CloudUploadOutlined />
                 <h2>放开即可上传</h2>
-                <p>文件保存在你的私人服务器</p>
               </div>
             )}
             {grid ? (
@@ -349,7 +338,6 @@ export default function FilesPage({ query, focusId }) {
                       <small>{row.is_folder ? '文件夹' : formatBytes(row.size)}</small>
                     </button>
                     <div className="file-card-actions">
-                      <Favorite value={row.favorite} onClick={() => favorite(row)} />
                       <Dropdown menu={{ items: actions(row) }} trigger={['click']}>
                         <Button
                           type="text"
@@ -360,12 +348,7 @@ export default function FilesPage({ query, focusId }) {
                     </div>
                   </article>
                 ))}
-                {!source.loading && !source.items.length && (
-                  <EmptyState
-                    title="留一点空间，放重要的文件"
-                    description="拖拽文件到这里，或点击上传。重名文件会被拒绝，不会覆盖。"
-                  />
-                )}
+                {!source.loading && !source.items.length && <EmptyState title="暂无文件" />}
                 {source.loading && <Spin />}
                 <div className="grid-pagination">
                   <Button disabled={page === 1} onClick={() => setPage((n) => n - 1)}>
@@ -400,11 +383,10 @@ export default function FilesPage({ query, focusId }) {
                 locale={{
                   emptyText: (
                     <EmptyState
-                      title="留一点空间，放重要的文件"
-                      description="拖拽文件到这里，或点击上传。重名文件会被拒绝，不会覆盖。"
+                      title="暂无文件"
                       action={
                         <Button icon={<UploadOutlined />} onClick={() => input.current?.click()}>
-                          上传第一个文件
+                          上传文件
                         </Button>
                       }
                     />
@@ -455,13 +437,6 @@ export default function FilesPage({ query, focusId }) {
                   },
                   {
                     title: '',
-                    width: 44,
-                    render: (_, row) => (
-                      <Favorite value={row.favorite} onClick={() => favorite(row)} />
-                    )
-                  },
-                  {
-                    title: '',
                     width: 40,
                     render: (_, row) => (
                       <Dropdown menu={{ items: actions(row) }} trigger={['click']}>
@@ -478,7 +453,6 @@ export default function FilesPage({ query, focusId }) {
             )}
             <div className="list-footnote">
               <span>{source.total} 个项目</span>
-              <span>本地磁盘 · 私人访问</span>
             </div>
           </section>
           {queue.length > 0 && (
