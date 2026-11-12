@@ -10,3 +10,13 @@ src-tauri/.cargo/
 *.db-journal
 *.db-shm
 *.db-wal
+
+.env
+.env.*
+!.env.example
+data/
+playwright-report/
+test-results/
+artifacts/
+
+.tmp/

@@ -1,82 +1,63 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: akv_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    command:
-      - postgres
-      - -c
-      - shared_buffers=128MB
-      - -c
-      - work_mem=4MB
-      - -c
-      - maintenance_work_mem=64MB
-      - -c
-      - effective_cache_size=384MB
-      - -c
-      - max_connections=30
-    mem_limit: 512m
-    mem_reservation: 256m
-    pids_limit: 200
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
+      POSTGRES_DB: ${POSTGRES_DB:-akv}
+      POSTGRES_USER: ${POSTGRES_USER:-akv}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=30]
     volumes:
       - akv_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 10s
       timeout: 5s
-      retries: 5
-
-  api:
-    image: ${API_IMAGE:-ghcr.io/wtfllix/apikey-vault-api:master-latest}
-    container_name: akv_api
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PORT: 8787
-      DATABASE_URL: ${DATABASE_URL}
-      JWT_SECRET: ${JWT_SECRET}
-      APP_MASTER_KEY: ${APP_MASTER_KEY}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      ARGON2_MEMORY_COST: ${ARGON2_MEMORY_COST:-19456}
-      ARGON2_TIME_COST: ${ARGON2_TIME_COST:-2}
-      ARGON2_PARALLELISM: ${ARGON2_PARALLELISM:-1}
-      NODE_OPTIONS: --max-old-space-size=192
-    mem_limit: 384m
-    mem_reservation: 192m
+      retries: 10
+    mem_limit: 512m
     pids_limit: 200
-    logging:
+    logging: &logging
       driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
-
-  web:
-    image: ${WEB_IMAGE:-ghcr.io/wtfllix/apikey-vault-web:master-latest}
-    container_name: akv_web
+      options: { max-size: 10m, max-file: '3' }
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE to a verified Vault 2.0 image digest}
     restart: unless-stopped
     depends_on:
-      - api
+      db: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      APP_ORIGIN: ${APP_ORIGIN:?Set HTTPS APP_ORIGIN in .env}
+      APP_MASTER_KEY: ${APP_MASTER_KEY:?Set random APP_MASTER_KEY in .env}
+      APP_LEGACY_MASTER_KEY: ${APP_LEGACY_MASTER_KEY:-}
+      APP_PREVIOUS_KEYS: ${APP_PREVIOUS_KEYS:-[]}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
+      STORAGE_ROOT: /srv/vault
+      STORAGE_QUOTA_BYTES: ${STORAGE_QUOTA_BYTES:-10737418240}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      DISK_RESERVE_BYTES: ${DISK_RESERVE_BYTES:-268435456}
+      SESSION_SECONDS: ${SESSION_SECONDS:-86400}
+      SESSION_IDLE_SECONDS: ${SESSION_IDLE_SECONDS:-1800}
+    volumes:
+      - vault_files:/srv/vault
+    mem_limit: 512m
+    pids_limit: 200
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+  web:
+    image: ${WEB_IMAGE:?Set WEB_IMAGE to a verified Vault 2.0 image digest}
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - '127.0.0.1:${WEB_PORT:-8080}:80'
+    volumes:
+      - vault_files:/srv/vault:ro
     mem_limit: 128m
-    mem_reservation: 64m
     pids_limit: 100
-    logging:
-      driver: json-file
-      options:
-        max-size: 5m
-        max-file: "2"
-
+    logging: *logging
 volumes:
   akv_pgdata:
+  vault_files:

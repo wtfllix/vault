@@ -5,3 +5,11 @@ dist
 src-tauri
 *.log
 .env
+
+.env.*
+!.env.example
+data
+.tmp
+artifacts
+test-results
+playwright-report

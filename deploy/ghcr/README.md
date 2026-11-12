@@ -1,27 +1,7 @@
-# GHCR 纯镜像部署
+# Vault 2.0 镜像部署
 
-这个目录用于“仅用镜像部署”，不依赖项目源码构建。
+使用这里的 Compose 与 .env.example，填写已经验证的 Vault 2.0 API_IMAGE、WEB_IMAGE（建议 digest）。不得用旧版 API 镜像配新版数据库。
 
-## 1. 准备文件
+新部署生成随机配置；已有部署按仓库 docs/DEPLOYMENT.md 保留原数据库卷、实际旧密钥和原数据库密码。设置准确的 HTTPS APP_ORIGIN，在宿主提供 HTTPS/HTTP2 代理，再启动 `docker compose --env-file .env up -d`。
 
-至少需要两个文件：
-- `docker-compose.yml`
-- `.env`（从 `.env.example` 复制）
-
-## 2. 部署步骤
-
-```bash
-cp .env.example .env
-# 编辑 .env，至少改密码和密钥
-docker login ghcr.io
-docker compose --env-file .env up -d
-```
-
-## 3. 常用运维
-
-```bash
-docker compose --env-file .env pull
-docker compose --env-file .env up -d
-docker compose ps
-docker compose logs --tail=120 api web db
-```
+持久化卷为 akv_pgdata 和 vault_files；不要执行 down -v。通过 `docker compose ps`、`docker compose logs --tail=100 api` 检查启动状态，日志不会输出密钥或底层解密错误详情。

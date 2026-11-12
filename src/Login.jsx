@@ -1,112 +1,91 @@
-import React, { useState } from 'react';
-import { Button, Card, Form, Input, Tag, Typography, message } from 'antd';
-import { LockOutlined, SafetyOutlined } from '@ant-design/icons';
-import { api, setToken } from './api';
-
-const { Title, Paragraph, Text } = Typography;
-
-const Login = ({ initialized, onAuthSuccess }) => {
-  const [form] = Form.useForm();
+import React, { useRef, useState } from 'react';
+import { Alert, Button, Form, Input } from 'antd';
+import { LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { mutate, setCsrf } from './services/api';
+export default function Login({ initialized, onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (values) => {
+  const [error, setError] = useState('');
+  const guard = useRef(false);
+  const submit = async (values) => {
+    if (guard.current) return;
+    guard.current = true;
     setLoading(true);
+    setError('');
     try {
-      if (!initialized) {
-        const result = await api.bootstrap(values.password);
-        setToken(result.token);
-        message.success('主密码设置成功');
-      } else {
-        const result = await api.login(values.password);
-        setToken(result.token);
-        message.success('登录成功');
-      }
+      const result = await mutate(
+        initialized ? '/auth/login' : '/auth/bootstrap',
+        initialized
+          ? { password: values.password }
+          : { password: values.password, bootstrapToken: values.bootstrapToken }
+      );
+      setCsrf(result.csrf);
       onAuthSuccess();
-    } catch (error) {
-      message.error(error.message || '操作失败');
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
+      guard.current = false;
     }
   };
-
   return (
-    <div className="app-shell login-shell page-enter">
-      <Card className="glass-panel login-card" bordered={false}>
-        <div className="login-head">
-          <Tag className="login-badge" bordered={false}>
-            自部署个人版
-          </Tag>
-          <Title level={2} className="login-title">
-            API Key Vault
-          </Title>
-          <Paragraph className="login-subtitle">
-            为个人开发者准备的轻量密钥保险箱。部署完成后，打开页面即可开始管理常用密钥、密码和配置文件。
-          </Paragraph>
+    <main className="login-page">
+      <div className="login-brand">
+        <span className="vault-mark">V</span> Vault <span className="version">2.0</span>
+      </div>
+      <section className="login-box">
+        <div className="login-symbol">
+          <LockOutlined />
         </div>
-
-        <div className="login-highlights">
-          <div className="login-highlight">单用户模式，安装后即可使用</div>
-          <div className="login-highlight">统一存放 API Key、数据库账号和配置文件</div>
-          <div className="login-highlight">敏感数据以加密形式存储在你的自部署服务中</div>
-        </div>
-
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark={false}
-          onFinish={handleSubmit}
-        >
-          <Form.Item name="username" style={{ display: 'none' }} initialValue="owner">
-            <Input autoComplete="username" />
-          </Form.Item>
+        <h1>{initialized ? '欢迎回来' : '你的私人数字空间'}</h1>
+        <p>Files、Notes 与 Secrets，安静有序地归于一处。</p>
+        {error && <Alert type="error" showIcon message={error} />}
+        <Form layout="vertical" onFinish={submit} requiredMark={false}>
+          {!initialized && (
+            <Form.Item name="bootstrapToken" label="一次性初始化凭据" rules={[{ required: true }]}>
+              <Input.Password autoComplete="off" placeholder="从服务器配置中获取" />
+            </Form.Item>
+          )}
           <Form.Item
             name="password"
-            label={initialized ? '输入主密码' : '设置主密码'}
+            label={initialized ? '主密码' : '设置主密码'}
             rules={[
-              { required: true, message: '请输入主密码' },
-              { min: 8, message: '至少 8 位字符' }
+              { required: true },
+              { min: initialized ? 1 : 12, max: 256, message: '新主密码至少 12 个字符' }
             ]}
           >
             <Input.Password
-              prefix={initialized ? <LockOutlined /> : <SafetyOutlined />}
-              placeholder={initialized ? '输入主密码解锁' : '创建一个至少 8 位的主密码'}
               autoComplete={initialized ? 'current-password' : 'new-password'}
               size="large"
+              placeholder={initialized ? '输入主密码解锁' : '至少 12 个字符'}
             />
           </Form.Item>
-
           {!initialized && (
             <Form.Item
-              name="confirmPassword"
+              name="confirm"
               label="确认主密码"
               dependencies={['password']}
               rules={[
-                { required: true, message: '请再次输入主密码' },
+                { required: true },
                 ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue('password') === value) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error('两次密码不一致'));
-                  }
+                  validator: (_, v) =>
+                    v === getFieldValue('password')
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('两次密码不一致'))
                 })
               ]}
             >
-              <Input.Password placeholder="再次输入主密码" autoComplete="new-password" size="large" />
+              <Input.Password autoComplete="new-password" />
             </Form.Item>
           )}
-
-          <Button type="primary" htmlType="submit" loading={loading} block size="large">
-            {!initialized ? '完成初始化并进入保险箱' : '进入保险箱'}
+          <Button block size="large" type="primary" htmlType="submit" loading={loading}>
+            {initialized ? '解锁 Vault' : '创建私人空间'}
           </Button>
         </Form>
-
-        <Text type="secondary" className="login-footnote">
-          {!initialized ? '首次登录只需设置一次主密码。' : '如果主密码错误，现有数据不会被修改。'}
-        </Text>
-      </Card>
-    </div>
+        <div className="login-assurance">
+          <SafetyCertificateOutlined /> 仅你可访问 · 私人自部署
+        </div>
+      </section>
+      <footer className="login-footer">A little space. Entirely yours.</footer>
+    </main>
   );
-};
-
-export default Login;
+}

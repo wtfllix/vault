@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { Readable } from 'node:stream';
+import { createStorage } from '../src/storage.js';
+test('atomic upload, SHA-256, size limits and symlink/path escape protection', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'vault-storage-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const store = await createStorage({ storageRoot: root, maxFileSize: 10 });
+  const key = crypto.randomUUID();
+  const result = await store.write(Readable.from([Buffer.from('hello')]), key);
+  assert.equal(result.size, 5);
+  assert.equal(result.sha256, crypto.createHash('sha256').update('hello').digest('hex'));
+  assert.equal(await fs.readFile(store.objectPath(key), 'utf8'), 'hello');
+  await assert.rejects(store.write(Readable.from([Buffer.alloc(11)]), crypto.randomUUID()));
+  assert.deepEqual(await fs.readdir(path.join(root, 'tmp')), []);
+  assert.throws(() => store.objectPath('../escape'));
+  const link = crypto.randomUUID();
+  await fs.symlink('/etc/passwd', path.join(root, 'objects', link));
+  await assert.rejects(store.check(link));
+});

@@ -1,78 +1,82 @@
 import React, { useEffect, useState } from 'react';
-import { Spin, message } from 'antd';
+import { Button, Spin } from 'antd';
 import Login from './Login';
-import Home from './Home';
-import { api, clearToken, getToken } from './api';
-
-const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-  const [loading, setLoading] = useState(true);
-
+import AppShell from './app/AppShell';
+import { request, setCsrf } from './services/api';
+import { clearDrafts } from './services/drafts';
+export default function App() {
+  const [state, setState] = useState(null);
+  const [logged, setLogged] = useState(false);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    const bootstrap = async () => {
+    let current = true;
+    localStorage.removeItem('akv_web_token_v1');
+    (async () => {
       try {
-        const state = await api.getAuthState();
-        setInitialized(state.initialized);
-        const token = getToken();
-        if (!token) {
-          setIsLoggedIn(false);
-          return;
-        }
-
+        const init = await request('/auth/state');
         try {
-          await api.getSession();
-          setIsLoggedIn(true);
-        } catch {
-          clearToken();
-          setIsLoggedIn(false);
+          const session = await request('/auth/session');
+          if (current) {
+            setCsrf(session.csrf);
+            setLogged(true);
+          }
+        } catch (e) {
+          if (e.status !== 401) throw e;
         }
-      } catch (error) {
-        message.error(`初始化失败: ${error.message}`);
-      } finally {
-        setLoading(false);
+        if (current) {
+          setState(init);
+          setError('');
+        }
+      } catch (e) {
+        if (current) setError(e.message);
       }
+    })();
+    return () => {
+      current = false;
     };
-
-    bootstrap();
+  }, [retry]);
+  const lock = (preserveDrafts = false) => {
+    setCsrf('');
+    if (!preserveDrafts) clearDrafts();
+    setLogged(false);
+  };
+  useEffect(() => {
+    const expired = () => lock(true);
+    window.addEventListener('vault:expired', expired);
+    return () => window.removeEventListener('vault:expired', expired);
   }, []);
-
-  const handleAuthSuccess = () => {
-    setInitialized(true);
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await api.logout();
-    } catch {
-      // 无论接口是否可用都强制退出本地会话
-    } finally {
-      clearToken();
-      setIsLoggedIn(false);
-      message.success('已退出');
-    }
-  };
-
-  const handleAuthExpired = () => {
-    clearToken();
-    setIsLoggedIn(false);
-    message.warning('登录状态已失效，请重新登录');
-  };
-
-  if (loading) {
+  if (error)
     return (
-      <div className="app-shell loading-shell">
-        <Spin />
+      <div className="boot-state" role="alert">
+        <h2>暂时无法连接 Vault</h2>
+        <p>{error}</p>
+        <Button
+          onClick={() => {
+            setError('');
+            setRetry((n) => n + 1);
+          }}
+        >
+          重新连接
+        </Button>
       </div>
     );
-  }
-
-  return isLoggedIn ? (
-    <Home onLogout={handleLogout} onAuthExpired={handleAuthExpired} />
+  if (!state)
+    return (
+      <div className="boot-state">
+        <Spin />
+        <p>正在打开私人空间</p>
+      </div>
+    );
+  return logged ? (
+    <AppShell onLock={lock} />
   ) : (
-    <Login initialized={initialized} onAuthSuccess={handleAuthSuccess} />
+    <Login
+      initialized={state.initialized}
+      onAuthSuccess={() => {
+        setState({ initialized: true });
+        setLogged(true);
+      }}
+    />
   );
-};
-
-export default App;
+}
